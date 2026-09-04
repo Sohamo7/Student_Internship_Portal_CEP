@@ -13,12 +13,12 @@ interface AuthContextType {
   isConfigured: boolean;
   login: (email: string, password: string) => Promise<{ success: boolean; role?: UserRole; error?: string }>;
   register: (name: string, email: string, password: string) => Promise<{ success: boolean; error?: string }>;
+  switchRole: (targetRole: UserRole) => void;
   logout: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Cookie helper for edge middleware compatibility
 function setRoleCookie(role: string | null, id: string | null) {
   if (role && id) {
     document.cookie = `cep_user_role=${role}; path=/; max-age=604800; SameSite=Lax`;
@@ -29,7 +29,6 @@ function setRoleCookie(role: string | null, id: string | null) {
   }
 }
 
-// Built-in Demo accounts for immediate verification prior to / alongside Supabase credentials
 const DEMO_ACCOUNTS: Record<string, { password: string; profile: UserProfile }> = {
   'student@ngo.org': {
     password: 'password123',
@@ -62,7 +61,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const [, startTransition] = useTransition();
 
-  // Load session on startup
   useEffect(() => {
     async function loadSession() {
       try {
@@ -71,7 +69,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           const { data: { session } } = await supabase.auth.getSession();
           if (session?.user) {
             setUser({ id: session.user.id, email: session.user.email || '' });
-            // Fetch profile
             const { data: profileData } = await supabase
               .from('profiles')
               .select('*')
@@ -85,7 +82,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             }
           }
         } else {
-          // Demo mode: check localStorage for saved demo session
           const savedSession = localStorage.getItem('cep_demo_session');
           if (savedSession) {
             const parsed = JSON.parse(savedSession) as UserProfile;
@@ -93,6 +89,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             setProfile(parsed);
             setRole(parsed.role);
             setRoleCookie(parsed.role, parsed.id);
+          } else {
+            // Default demo session: student
+            const defaultStudent = DEMO_ACCOUNTS['student@ngo.org'].profile;
+            setUser({ id: defaultStudent.id, email: defaultStudent.email });
+            setProfile(defaultStudent);
+            setRole('student');
+            setRoleCookie('student', defaultStudent.id);
+            localStorage.setItem('cep_demo_session', JSON.stringify(defaultStudent));
           }
         }
       } catch (err) {
@@ -104,6 +108,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     loadSession();
   }, [isConfigured]);
+
+  const switchRole = (targetRole: UserRole) => {
+    if (targetRole === 'admin') {
+      const adminProfile = DEMO_ACCOUNTS['admin@ngo.org'].profile;
+      setUser({ id: adminProfile.id, email: adminProfile.email });
+      setProfile(adminProfile);
+      setRole('admin');
+      setRoleCookie('admin', adminProfile.id);
+      localStorage.setItem('cep_demo_session', JSON.stringify(adminProfile));
+      router.push('/admin/dashboard');
+    } else {
+      const studentProfile = DEMO_ACCOUNTS['student@ngo.org'].profile;
+      setUser({ id: studentProfile.id, email: studentProfile.email });
+      setProfile(studentProfile);
+      setRole('student');
+      setRoleCookie('student', studentProfile.id);
+      localStorage.setItem('cep_demo_session', JSON.stringify(studentProfile));
+      router.push('/student/dashboard');
+    }
+  };
 
   const login = async (email: string, password: string): Promise<{ success: boolean; role?: UserRole; error?: string }> => {
     setIsLoading(true);
@@ -117,7 +141,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
 
         if (data.user) {
-          // Fetch profile from database
           const { data: profileData, error: profileErr } = await supabase
             .from('profiles')
             .select('*')
@@ -138,10 +161,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           return { success: true, role: userProfile.role };
         }
       } else {
-        // Demo Mode login check
         const normalizedEmail = email.trim().toLowerCase();
-        
-        // Also check custom registered users in localStorage
         const storedUsers = JSON.parse(localStorage.getItem('cep_registered_users') || '{}');
         const candidate = DEMO_ACCOUNTS[normalizedEmail] || storedUsers[normalizedEmail];
 
@@ -192,7 +212,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
 
         if (data.user) {
-          // If email confirmation is disabled or auto-confirmed, sign in profile
           setUser({ id: data.user.id, email: data.user.email || '' });
           const initialProfile: UserProfile = {
             id: data.user.id,
@@ -208,7 +227,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setIsLoading(false);
         return { success: true };
       } else {
-        // Demo mode student registration
         const storedUsers = JSON.parse(localStorage.getItem('cep_registered_users') || '{}');
         if (DEMO_ACCOUNTS[normalizedEmail] || storedUsers[normalizedEmail]) {
           setIsLoading(false);
@@ -220,7 +238,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           id: newId,
           name: name.trim(),
           email: normalizedEmail,
-          role: 'student', // All self-registrations are students per Task 5 & 8
+          role: 'student',
           created_at: new Date().toISOString(),
         };
 
@@ -230,7 +248,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         };
         localStorage.setItem('cep_registered_users', JSON.stringify(storedUsers));
         
-        // Auto-login registered student
         setUser({ id: newId, email: normalizedEmail });
         setProfile(newProfile);
         setRole('student');
@@ -280,6 +297,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         isConfigured,
         login,
         register,
+        switchRole,
         logout,
       }}
     >

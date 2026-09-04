@@ -3,10 +3,10 @@
 import React from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/lib/auth/auth-context';
-import { GraduationCap, Shield, LogOut, HeartHandshake } from 'lucide-react';
+import { GraduationCap, Shield, LogOut, HeartHandshake, ArrowLeftRight } from 'lucide-react';
 
 export function Navbar() {
-  const { user, profile, role, isConfigured, logout } = useAuth();
+  const { user, profile, role, isConfigured, logout, switchRole } = useAuth();
 
   return (
     <header className="sticky top-0 z-40 w-full border-b border-slate-200/90 bg-white/95 backdrop-blur-md shadow-2xs">
@@ -22,7 +22,7 @@ export function Navbar() {
                 NGO Internship Portal
               </span>
               <span className="text-[10px] font-medium tracking-wide uppercase text-indigo-600">
-                Week 1 Foundation
+                Connected Dashboards
               </span>
             </div>
           </Link>
@@ -37,7 +37,21 @@ export function Navbar() {
         {/* Right actions */}
         <div className="flex items-center gap-3">
           {user && profile ? (
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2.5">
+              {/* Universal Switcher between Student & Admin Dashboards */}
+              <button
+                onClick={() => switchRole(role === 'admin' ? 'student' : 'admin')}
+                className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-semibold shadow-2xs transition-all cursor-pointer ${
+                  role === 'admin'
+                    ? 'border-indigo-200 bg-indigo-50 text-indigo-700 hover:bg-indigo-100'
+                    : 'border-purple-200 bg-purple-50 text-purple-700 hover:bg-purple-100'
+                }`}
+                title="Click to jump to the other connected dashboard"
+              >
+                <ArrowLeftRight className="h-3.5 w-3.5" />
+                <span>Switch to {role === 'admin' ? 'Student Dashboard' : 'Admin Console'}</span>
+              </button>
+
               {/* User badge */}
               <div className="hidden sm:flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5">
                 {role === 'admin' ? (
@@ -55,12 +69,12 @@ export function Navbar() {
                 </div>
               </div>
 
-              {/* Dashboard Link */}
+              {/* Active Dashboard Link */}
               <Link
                 href={role === 'admin' ? '/admin/dashboard' : '/student/dashboard'}
-                className="inline-flex items-center rounded-lg bg-indigo-50 border border-indigo-100 px-3 py-1.5 text-xs font-medium text-indigo-700 hover:bg-indigo-100 transition-colors"
+                className="inline-flex items-center rounded-lg bg-slate-100 border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-800 hover:bg-slate-200 transition-colors"
               >
-                Dashboard
+                Home
               </Link>
 
               {/* Logout button */}
@@ -69,7 +83,7 @@ export function Navbar() {
                 className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-rose-50 hover:text-rose-600 hover:border-rose-200 transition-colors cursor-pointer"
               >
                 <LogOut className="h-3.5 w-3.5" />
-                <span>Logout</span>
+                <span className="hidden md:inline">Logout</span>
               </button>
             </div>
           ) : (

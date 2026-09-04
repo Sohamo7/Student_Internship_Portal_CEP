@@ -2,10 +2,10 @@
 
 import React from 'react';
 import { useAuth } from '@/lib/auth/auth-context';
-import { Info, Key, CheckCircle2 } from 'lucide-react';
+import { Info, Key, CheckCircle2, ArrowRight } from 'lucide-react';
 
 export function DemoBanner() {
-  const { isConfigured } = useAuth();
+  const { isConfigured, role, switchRole } = useAuth();
 
   if (isConfigured) {
     return (
@@ -22,19 +22,36 @@ export function DemoBanner() {
   }
 
   return (
-    <div className="bg-amber-50/90 border-b border-amber-200 px-4 py-2.5 text-xs text-amber-900">
+    <div className="bg-amber-50/90 border-b border-amber-200 px-4 py-2 text-xs text-amber-900">
       <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           <Info className="h-4 w-4 shrink-0 text-amber-600" />
           <span>
-            <strong>Week 1 Demo Mode:</strong> Ready for testing. Connect Supabase by setting <code className="rounded bg-amber-100 px-1 py-0.5 font-mono text-[11px] text-amber-900">NEXT_PUBLIC_SUPABASE_URL</code> in <code className="rounded bg-amber-100 px-1 py-0.5 font-mono text-[11px] text-amber-900">.env.local</code>.
+            <strong>Connected Mode:</strong> You can switch seamlessly between dashboards anytime.
           </span>
         </div>
-        <div className="flex items-center gap-3 text-[11px]">
-          <span className="flex items-center gap-1.5 text-slate-600">
-            <Key className="h-3.5 w-3.5 text-amber-600" />
-            Demo Accounts: <span className="font-semibold text-slate-900">student@ngo.org</span> / <span className="font-semibold text-slate-900">admin@ngo.org</span> (pw: <span className="font-mono text-slate-700">password123</span>)
-          </span>
+        <div className="flex items-center gap-2 text-[11px]">
+          <span className="text-slate-600 font-medium">Quick Jump:</span>
+          <button
+            onClick={() => switchRole('student')}
+            className={`rounded-md px-2 py-1 font-semibold border transition-all cursor-pointer ${
+              role === 'student'
+                ? 'bg-indigo-600 text-white border-indigo-600 shadow-2xs'
+                : 'bg-white text-indigo-700 border-slate-200 hover:bg-indigo-50'
+            }`}
+          >
+            🎓 Student Dashboard
+          </button>
+          <button
+            onClick={() => switchRole('admin')}
+            className={`rounded-md px-2 py-1 font-semibold border transition-all cursor-pointer ${
+              role === 'admin'
+                ? 'bg-purple-600 text-white border-purple-600 shadow-2xs'
+                : 'bg-white text-purple-700 border-slate-200 hover:bg-purple-50'
+            }`}
+          >
+            🛡️ Admin Console
+          </button>
         </div>
       </div>
     </div>

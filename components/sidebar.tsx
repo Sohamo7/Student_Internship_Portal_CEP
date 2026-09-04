@@ -27,28 +27,28 @@ export function Sidebar({ role }: SidebarProps) {
   const { profile, logout } = useAuth();
 
   const studentNav = [
-    { label: 'Dashboard', href: '/student/dashboard', icon: LayoutDashboard, ready: true },
-    { label: 'Application', href: '#', icon: FileText, ready: false, badge: 'Week 2' },
-    { label: 'Project', href: '#', icon: Briefcase, ready: false, badge: 'Week 3' },
-    { label: 'Attendance', href: '#', icon: CalendarCheck, ready: false, badge: 'Week 4' },
-    { label: 'Work Log', href: '#', icon: ClipboardList, ready: false, badge: 'Week 4' },
-    { label: 'Profile', href: '#', icon: User, ready: false, badge: 'Soon' },
+    { label: 'Dashboard', href: '/student/dashboard', icon: LayoutDashboard },
+    { label: 'Application', href: '/student/application', icon: FileText },
+    { label: 'Project', href: '/student/project', icon: Briefcase },
+    { label: 'Attendance', href: '/student/attendance', icon: CalendarCheck },
+    { label: 'Work Log', href: '/student/work-log', icon: ClipboardList },
+    { label: 'Profile', href: '/student/profile', icon: User },
   ];
 
   const adminNav = [
-    { label: 'Dashboard', href: '/admin/dashboard', icon: LayoutDashboard, ready: true },
-    { label: 'Applications', href: '#', icon: FileText, ready: false, badge: 'Week 2' },
-    { label: 'Students', href: '#', icon: Users, ready: false, badge: 'Week 2' },
-    { label: 'Projects', href: '#', icon: Briefcase, ready: false, badge: 'Week 3' },
-    { label: 'Attendance', href: '#', icon: CalendarCheck, ready: false, badge: 'Week 4' },
-    { label: 'Work Logs', href: '#', icon: ClipboardList, ready: false, badge: 'Week 4' },
-    { label: 'Settings', href: '#', icon: Settings, ready: false, badge: 'Soon' },
+    { label: 'Dashboard', href: '/admin/dashboard', icon: LayoutDashboard },
+    { label: 'Applications', href: '/admin/applications', icon: FileText },
+    { label: 'Students', href: '/admin/students', icon: Users },
+    { label: 'Projects', href: '/admin/projects', icon: Briefcase },
+    { label: 'Attendance', href: '/admin/attendance', icon: CalendarCheck },
+    { label: 'Work Logs', href: '/admin/work-logs', icon: ClipboardList },
+    { label: 'Settings', href: '/admin/settings', icon: Settings },
   ];
 
   const items = role === 'admin' ? adminNav : studentNav;
 
   return (
-    <aside className="flex flex-col w-full md:w-64 border-r border-slate-200/90 bg-white p-4">
+    <aside className="flex flex-col w-full md:w-64 border-r border-slate-200/90 bg-white p-4 shrink-0">
       {/* Role Profile Header */}
       <div className="mb-6 rounded-xl border border-slate-200 bg-slate-50/80 p-3.5 shadow-2xs">
         <div className="flex items-center gap-3">
@@ -73,26 +73,6 @@ export function Sidebar({ role }: SidebarProps) {
         {items.map((item) => {
           const Icon = item.icon;
           const isActive = pathname === item.href;
-
-          if (!item.ready) {
-            return (
-              <div
-                key={item.label}
-                className="group flex items-center justify-between rounded-xl px-3 py-2.5 text-sm font-medium text-slate-400 cursor-not-allowed transition-colors"
-                title={`${item.label} (${item.badge})`}
-              >
-                <div className="flex items-center gap-3">
-                  <Icon className="h-4 w-4" />
-                  <span>{item.label}</span>
-                </div>
-                {item.badge && (
-                  <span className="rounded-md border border-slate-200 bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-500">
-                    {item.badge}
-                  </span>
-                )}
-              </div>
-            );
-          }
 
           return (
             <Link
