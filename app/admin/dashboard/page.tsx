@@ -3,9 +3,17 @@
 import React, { useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { motion } from 'framer-motion';
 import { useAuth } from '@/lib/auth/auth-context';
 import { Sidebar } from '@/components/sidebar';
 import { StatCard } from '@/components/stat-card';
+import {
+  FadeInUp,
+  StaggerContainer,
+  StaggerItem,
+  PulseDot,
+  AnimatedCounter,
+} from '@/components/motion-wrapper';
 import {
   Users,
   FileText,
@@ -18,129 +26,125 @@ import {
 
 export default function AdminDashboardPage() {
   const router = useRouter();
-  const { user, profile, role, isLoading } = useAuth();
+  const { user, role } = useAuth();
 
   useEffect(() => {
-    if (!isLoading && !user) {
-      router.push('/login?redirect=/admin/dashboard');
-    } else if (!isLoading && role && role !== 'admin') {
-      router.push('/unauthorized');
-    }
-  }, [user, role, isLoading, router]);
+    if (!user) router.push('/login');
+    else if (role === 'student') router.push('/student/dashboard');
+  }, [user, role, router]);
 
-  if (isLoading || !user) {
-    return (
-      <div className="flex flex-1 items-center justify-center p-12 bg-slate-50/60">
-        <div className="flex flex-col items-center gap-3">
-          <div className="h-8 w-8 animate-spin rounded-full border-3 border-purple-600 border-t-transparent" />
-          <span className="text-xs font-medium text-slate-500">Loading admin console...</span>
-        </div>
-      </div>
-    );
-  }
-
-  const adminName = profile?.name || 'NGO Administrator';
+  if (!user || role === 'student') return null;
 
   return (
-    <div className="flex flex-1 flex-col md:flex-row bg-slate-50/60">
+    <div className="flex flex-1 flex-col md:flex-row">
       <Sidebar role="admin" />
-
-      <main className="flex-1 p-6 md:p-8 space-y-8 max-w-6xl">
-        {/* Header */}
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div>
+      <main className="flex-1 overflow-y-auto p-6 lg:p-8 space-y-8 gradient-bg-animated">
+        {/* Admin Header */}
+        <FadeInUp>
+          <div className="flex flex-col gap-1">
             <div className="flex items-center gap-2">
-              <h1 className="text-2xl font-black tracking-tight text-slate-900 sm:text-3xl">
-                NGO Management Console
+              <h1 className="text-2xl font-extrabold tracking-tight text-slate-900">
+                NGO Admin Console
               </h1>
-              <span className="rounded-md bg-purple-100 px-2.5 py-0.5 text-xs font-bold text-purple-700">
-                Admin
-              </span>
+              <PulseDot color="#8b5cf6" size={8} />
             </div>
-            <p className="mt-1 text-sm text-slate-600">
-              Welcome back, {adminName}. Manage applicants, assign projects, and verify student engagement.
+            <p className="text-sm text-slate-600">
+              Full management access. Review applications, manage students, projects, and attendance.
             </p>
           </div>
+        </FadeInUp>
 
-          <div className="flex items-center gap-2">
-            <span className="inline-flex items-center gap-1.5 rounded-xl border border-purple-200 bg-white px-3 py-2 text-xs font-semibold text-purple-700 shadow-2xs">
-              <ShieldCheck className="h-4 w-4 text-purple-600" />
-              Admin Authorization Active
-            </span>
-          </div>
-        </div>
+        {/* Stat Summary */}
+        <StaggerContainer className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4" staggerDelay={0.1}>
+          <StaggerItem>
+            <Link href="/admin/students" className="block">
+              <StatCard
+                title="Total Students"
+                value={18}
+                subtitle="Click to open student directory"
+                badge="Active"
+                badgeColor="blue"
+                icon={<Users className="h-5 w-5 text-blue-600" />}
+              />
+            </Link>
+          </StaggerItem>
 
-        {/* Metric Cards */}
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <Link href="/admin/students" className="block transition-transform hover:-translate-y-0.5">
-            <StatCard
-              title="Registered Students"
-              value="18"
-              subtitle="Click to open directory"
-              badge="Active"
-              badgeColor="blue"
-              icon={<Users className="h-5 w-5 text-blue-600" />}
-            />
-          </Link>
+          <StaggerItem>
+            <Link href="/admin/applications" className="block">
+              <StatCard
+                title="Pending Reviews"
+                value={6}
+                subtitle="Click to review applications"
+                badge="Action Required"
+                badgeColor="amber"
+                icon={<FileText className="h-5 w-5 text-amber-600" />}
+              />
+            </Link>
+          </StaggerItem>
 
-          <Link href="/admin/applications" className="block transition-transform hover:-translate-y-0.5">
-            <StatCard
-              title="Applications"
-              value="6 Pending"
-              subtitle="Click to review applicants"
-              badge="Action Req."
-              badgeColor="amber"
-              icon={<FileText className="h-5 w-5 text-amber-600" />}
-            />
-          </Link>
+          <StaggerItem>
+            <Link href="/admin/projects" className="block">
+              <StatCard
+                title="Active Projects"
+                value={4}
+                subtitle="Click to manage projects"
+                badge="Running"
+                badgeColor="purple"
+                icon={<Briefcase className="h-5 w-5 text-purple-600" />}
+              />
+            </Link>
+          </StaggerItem>
 
-          <Link href="/admin/projects" className="block transition-transform hover:-translate-y-0.5">
-            <StatCard
-              title="Projects"
-              value="4 Programs"
-              subtitle="Click to allocate students"
-              badge="Allotted"
-              badgeColor="purple"
-              icon={<Briefcase className="h-5 w-5 text-purple-600" />}
-            />
-          </Link>
+          <StaggerItem>
+            <Link href="/admin/attendance" className="block">
+              <StatCard
+                title="Avg Attendance"
+                value="94.2%"
+                subtitle="Click to verify attendance logs"
+                badge="This Month"
+                badgeColor="emerald"
+                icon={<CalendarCheck className="h-5 w-5 text-emerald-600" />}
+              />
+            </Link>
+          </StaggerItem>
+        </StaggerContainer>
 
-          <Link href="/admin/attendance" className="block transition-transform hover:-translate-y-0.5">
-            <StatCard
-              title="Attendance Today"
-              value="17 Verified"
-              subtitle="Click for daily log"
-              badge="94%"
-              badgeColor="emerald"
-              icon={<CalendarCheck className="h-5 w-5 text-emerald-600" />}
-            />
-          </Link>
-        </div>
-
-        {/* NGO Action Modules */}
-        <div>
+        {/* Admin Management Modules */}
+        <FadeInUp delay={0.3}>
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-base font-bold text-slate-900">
-              Management Modules
-            </h2>
-            <span className="text-xs font-semibold text-purple-700 bg-purple-50 px-2 py-0.5 rounded border border-purple-200">
-              All Sections Connected
-            </span>
+            <h2 className="text-base font-bold text-slate-900">Management Center</h2>
+            <motion.span
+              className="text-xs font-semibold text-purple-700 bg-purple-50 px-2 py-0.5 rounded border border-purple-200 flex items-center gap-1.5"
+              animate={{ opacity: [1, 0.7, 1] }}
+              transition={{ duration: 3, repeat: Infinity }}
+            >
+              <PulseDot color="#8b5cf6" size={5} />
+              Admin Access
+            </motion.span>
           </div>
+        </FadeInUp>
 
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {/* 1. Applications */}
+        <StaggerContainer className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3" staggerDelay={0.08}>
+          {/* 1. Applications */}
+          <StaggerItem>
             <Link
               href="/admin/applications"
-              className="group rounded-2xl border border-slate-200/90 bg-white p-6 shadow-xs transition-all hover:border-amber-400 hover:shadow-md block"
+              className="group rounded-2xl border border-slate-200/90 bg-white p-6 shadow-xs transition-all hover:border-amber-400 hover:shadow-md block card-3d"
             >
               <div className="flex items-center justify-between">
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-50 text-amber-600 group-hover:bg-amber-600 group-hover:text-white transition-colors">
+                <motion.div
+                  className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-50 text-amber-600 group-hover:bg-amber-600 group-hover:text-white transition-colors"
+                  whileHover={{ rotate: 10, scale: 1.1 }}
+                >
                   <FileText className="h-5 w-5" />
-                </div>
-                <span className="rounded-md bg-amber-50 border border-amber-200 px-2 py-0.5 text-[10px] font-bold text-amber-700">
+                </motion.div>
+                <motion.span
+                  className="rounded-md bg-amber-50 border border-amber-200 px-2 py-0.5 text-[10px] font-bold text-amber-700"
+                  animate={{ scale: [1, 1.05, 1] }}
+                  transition={{ duration: 2, repeat: Infinity }}
+                >
                   6 Pending
-                </span>
+                </motion.span>
               </div>
               <h3 className="mt-4 font-bold text-slate-900 group-hover:text-amber-600 transition-colors">Review Applications</h3>
               <p className="mt-1 text-xs text-slate-600">
@@ -150,16 +154,21 @@ export default function AdminDashboardPage() {
                 Open Review <ArrowRight className="h-3.5 w-3.5" />
               </span>
             </Link>
+          </StaggerItem>
 
-            {/* 2. Students */}
+          {/* 2. Students */}
+          <StaggerItem>
             <Link
               href="/admin/students"
-              className="group rounded-2xl border border-slate-200/90 bg-white p-6 shadow-xs transition-all hover:border-blue-400 hover:shadow-md block"
+              className="group rounded-2xl border border-slate-200/90 bg-white p-6 shadow-xs transition-all hover:border-blue-400 hover:shadow-md block card-3d"
             >
               <div className="flex items-center justify-between">
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50 text-blue-600 group-hover:bg-blue-600 group-hover:text-white transition-colors">
+                <motion.div
+                  className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50 text-blue-600 group-hover:bg-blue-600 group-hover:text-white transition-colors"
+                  whileHover={{ rotate: -10, scale: 1.1 }}
+                >
                   <Users className="h-5 w-5" />
-                </div>
+                </motion.div>
                 <span className="rounded-md bg-blue-50 border border-blue-200 px-2 py-0.5 text-[10px] font-bold text-blue-700">
                   18 Students
                 </span>
@@ -172,16 +181,21 @@ export default function AdminDashboardPage() {
                 View Directory <ArrowRight className="h-3.5 w-3.5" />
               </span>
             </Link>
+          </StaggerItem>
 
-            {/* 3. Projects */}
+          {/* 3. Projects */}
+          <StaggerItem>
             <Link
               href="/admin/projects"
-              className="group rounded-2xl border border-slate-200/90 bg-white p-6 shadow-xs transition-all hover:border-purple-400 hover:shadow-md block"
+              className="group rounded-2xl border border-slate-200/90 bg-white p-6 shadow-xs transition-all hover:border-purple-400 hover:shadow-md block card-3d"
             >
               <div className="flex items-center justify-between">
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-purple-50 text-purple-600 group-hover:bg-purple-600 group-hover:text-white transition-colors">
+                <motion.div
+                  className="flex h-10 w-10 items-center justify-center rounded-xl bg-purple-50 text-purple-600 group-hover:bg-purple-600 group-hover:text-white transition-colors"
+                  whileHover={{ rotate: 10, scale: 1.1 }}
+                >
                   <Briefcase className="h-5 w-5" />
-                </div>
+                </motion.div>
                 <span className="rounded-md bg-purple-50 border border-purple-200 px-2 py-0.5 text-[10px] font-bold text-purple-700">
                   4 Active
                 </span>
@@ -194,16 +208,21 @@ export default function AdminDashboardPage() {
                 Manage Projects <ArrowRight className="h-3.5 w-3.5" />
               </span>
             </Link>
+          </StaggerItem>
 
-            {/* 4. Attendance */}
+          {/* 4. Attendance */}
+          <StaggerItem>
             <Link
               href="/admin/attendance"
-              className="group rounded-2xl border border-slate-200/90 bg-white p-6 shadow-xs transition-all hover:border-emerald-400 hover:shadow-md block"
+              className="group rounded-2xl border border-slate-200/90 bg-white p-6 shadow-xs transition-all hover:border-emerald-400 hover:shadow-md block card-3d"
             >
               <div className="flex items-center justify-between">
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600 group-hover:bg-emerald-600 group-hover:text-white transition-colors">
+                <motion.div
+                  className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600 group-hover:bg-emerald-600 group-hover:text-white transition-colors"
+                  whileHover={{ rotate: -10, scale: 1.1 }}
+                >
                   <CalendarCheck className="h-5 w-5" />
-                </div>
+                </motion.div>
                 <span className="rounded-md bg-emerald-50 border border-emerald-200 px-2 py-0.5 text-[10px] font-bold text-emerald-700">
                   Live Log
                 </span>
@@ -216,16 +235,21 @@ export default function AdminDashboardPage() {
                 Verify Attendance <ArrowRight className="h-3.5 w-3.5" />
               </span>
             </Link>
+          </StaggerItem>
 
-            {/* 5. Work Logs */}
+          {/* 5. Work Logs */}
+          <StaggerItem>
             <Link
               href="/admin/work-logs"
-              className="group rounded-2xl border border-slate-200/90 bg-white p-6 shadow-xs transition-all hover:border-indigo-400 hover:shadow-md block"
+              className="group rounded-2xl border border-slate-200/90 bg-white p-6 shadow-xs transition-all hover:border-indigo-400 hover:shadow-md block card-3d"
             >
               <div className="flex items-center justify-between">
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600 group-hover:bg-indigo-600 group-hover:text-white transition-colors">
+                <motion.div
+                  className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600 group-hover:bg-indigo-600 group-hover:text-white transition-colors"
+                  whileHover={{ rotate: 10, scale: 1.1 }}
+                >
                   <ClipboardList className="h-5 w-5" />
-                </div>
+                </motion.div>
                 <span className="rounded-md bg-indigo-50 border border-indigo-200 px-2 py-0.5 text-[10px] font-bold text-indigo-700">
                   Review
                 </span>
@@ -238,16 +262,21 @@ export default function AdminDashboardPage() {
                 Open Reports <ArrowRight className="h-3.5 w-3.5" />
               </span>
             </Link>
+          </StaggerItem>
 
-            {/* 6. Settings */}
+          {/* 6. Settings */}
+          <StaggerItem>
             <Link
               href="/admin/settings"
-              className="group rounded-2xl border border-slate-200/90 bg-white p-6 shadow-xs transition-all hover:border-slate-400 hover:shadow-md block"
+              className="group rounded-2xl border border-slate-200/90 bg-white p-6 shadow-xs transition-all hover:border-slate-400 hover:shadow-md block card-3d"
             >
               <div className="flex items-center justify-between">
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-100 text-slate-700 group-hover:bg-slate-700 group-hover:text-white transition-colors">
+                <motion.div
+                  className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-100 text-slate-700 group-hover:bg-slate-700 group-hover:text-white transition-colors"
+                  whileHover={{ rotate: -10, scale: 1.1 }}
+                >
                   <ShieldCheck className="h-5 w-5" />
-                </div>
+                </motion.div>
                 <span className="rounded-md bg-slate-100 border border-slate-200 px-2 py-0.5 text-[10px] font-bold text-slate-600">
                   Config
                 </span>
@@ -260,8 +289,8 @@ export default function AdminDashboardPage() {
                 Configure <ArrowRight className="h-3.5 w-3.5" />
               </span>
             </Link>
-          </div>
-        </div>
+          </StaggerItem>
+        </StaggerContainer>
       </main>
     </div>
   );
