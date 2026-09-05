@@ -1,41 +1,102 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Sidebar } from '@/components/sidebar';
+import { createClient, isSupabaseConfigured } from '@/lib/supabase/client';
+import { ApplicationStatus, UserProfile } from '@/lib/supabase/types';
 import {
-  FileText,
-  CheckCircle,
-  XCircle,
   Search,
-  Filter,
   ArrowLeft,
-  Clock,
   Check,
-  X
+  X,
+  Loader2,
 } from 'lucide-react';
 
+type FilterOption = 'All' | ApplicationStatus;
+
+const STATUS_LABEL: Record<ApplicationStatus, string> = {
+  pending: 'Pending',
+  approved: 'Approved',
+  rejected: 'Rejected',
+};
+
+// Reads/writes the same localStorage record that the "Apply" tab on /login
+// writes to in demo/offline mode, so approving here really unlocks sign in.
+function readLocalApplications(): UserProfile[] {
+  try {
+    const stored = JSON.parse(localStorage.getItem('cep_registered_users') || '{}');
+    return Object.values(stored as Record<string, { profile: UserProfile }>).map((u) => u.profile);
+  } catch {
+    return [];
+  }
+}
+
+function writeLocalApplicationStatus(email: string, status: ApplicationStatus) {
+  const stored = JSON.parse(localStorage.getItem('cep_registered_users') || '{}');
+  if (stored[email]) {
+    stored[email].profile.application_status = status;
+    stored[email].profile.reviewed_at = new Date().toISOString();
+    localStorage.setItem('cep_registered_users', JSON.stringify(stored));
+  }
+}
+
 export default function AdminApplicationsPage() {
-  const [applications, setApplications] = useState([
-    { id: 1, name: 'Rahul Sharma', email: 'rahul@dtu.edu', college: 'Delhi Tech Univ', track: 'Digital Literacy', date: 'Sep 03, 2026', status: 'Pending' },
-    { id: 2, name: 'Ananya Verma', email: 'ananya@bits.edu', college: 'BITS Pilani', track: 'Rural Healthcare', date: 'Sep 02, 2026', status: 'Approved' },
-    { id: 3, name: 'Rohan Iyer', email: 'rohan@mu.ac.in', college: 'Mumbai University', track: 'Clean Water Initiative', date: 'Sep 02, 2026', status: 'Pending' },
-    { id: 4, name: 'Sneha Kulkarni', email: 'sneha@coep.ac.in', college: 'COEP Pune', track: 'Women Empowerment', date: 'Sep 01, 2026', status: 'Approved' },
-    { id: 5, name: 'Aditya Mehta', email: 'aditya@iitb.ac.in', college: 'IIT Bombay', track: 'Digital Literacy', date: 'Aug 31, 2026', status: 'Pending' },
-  ]);
-
-  const [filter, setFilter] = useState('All');
+  const [applications, setApplications] = useState<UserProfile[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [filter, setFilter] = useState<FilterOption>('All');
   const [searchTerm, setSearchTerm] = useState('');
+  const configured = isSupabaseConfigured();
 
-  const updateStatus = (id: number, newStatus: string) => {
-    setApplications(prev => prev.map(a => a.id === id ? { ...a, status: newStatus } : a));
+  const loadApplications = async () => {
+    setLoading(true);
+    if (configured) {
+      const supabase = createClient();
+      const { data } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('role', 'student')
+        .order('created_at', { ascending: false });
+      setApplications((data as UserProfile[]) || []);
+    } else {
+      setApplications(readLocalApplications());
+    }
+    setLoading(false);
   };
 
-  const filtered = applications.filter(a => {
-    const matchesFilter = filter === 'All' || a.status === filter;
-    const matchesSearch = a.name.toLowerCase().includes(searchTerm.toLowerCase()) || a.college.toLowerCase().includes(searchTerm.toLowerCase());
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect, react-hooks/exhaustive-deps
+    loadApplications();
+  }, []);
+
+  const updateStatus = async (applicant: UserProfile, newStatus: ApplicationStatus) => {
+    setUpdatingId(applicant.id);
+    if (configured) {
+      const supabase = createClient();
+      await supabase
+        .from('profiles')
+        .update({ application_status: newStatus, reviewed_at: new Date().toISOString() })
+        .eq('id', applicant.id);
+    } else {
+      writeLocalApplicationStatus(applicant.email, newStatus);
+    }
+    setApplications((prev) =>
+      prev.map((a) => (a.id === applicant.id ? { ...a, application_status: newStatus } : a))
+    );
+    setUpdatingId(null);
+  };
+
+  const filtered = applications.filter((a) => {
+    const status: ApplicationStatus = a.application_status || 'approved';
+    const matchesFilter = filter === 'All' || status === filter;
+    const term = searchTerm.toLowerCase();
+    const matchesSearch =
+      a.name.toLowerCase().includes(term) || (a.college || '').toLowerCase().includes(term);
     return matchesFilter && matchesSearch;
   });
+
+  const pendingCount = applications.filter((a) => (a.application_status || 'approved') === 'pending').length;
 
   return (
     <div className="flex flex-1 flex-col md:flex-row bg-slate-50/60">
@@ -55,16 +116,22 @@ export default function AdminApplicationsPage() {
                 Review Student Applications
               </h1>
               <p className="text-sm text-slate-600">
-                Evaluate prospective interns and assign admissions with instant status updates.
+                Approving an applicant here is what unlocks the <strong>Sign In</strong> tab on their login page —
+                new volunteers can&apos;t access the portal until you do this.
               </p>
             </div>
 
             <div className="flex items-center gap-2">
               <span className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-1.5 text-xs font-bold text-amber-800">
-                {applications.filter(a => a.status === 'Pending').length} Pending Intake
+                {pendingCount} Pending Intake
               </span>
             </div>
           </div>
+          {!configured && (
+            <p className="mt-2 text-[11px] text-slate-400">
+              Demo mode: reading applications submitted via the Apply tab from this browser&apos;s local storage.
+            </p>
+          )}
         </div>
 
         {/* Filters and Search Bar */}
@@ -81,7 +148,7 @@ export default function AdminApplicationsPage() {
           </div>
 
           <div className="flex items-center gap-1.5 text-xs font-semibold">
-            {['All', 'Pending', 'Approved', 'Declined'].map(f => (
+            {(['All', 'pending', 'approved', 'rejected'] as FilterOption[]).map((f) => (
               <button
                 key={f}
                 onClick={() => setFilter(f)}
@@ -91,7 +158,7 @@ export default function AdminApplicationsPage() {
                     : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
                 }`}
               >
-                {f}
+                {f === 'All' ? 'All' : STATUS_LABEL[f]}
               </button>
             ))}
           </div>
@@ -99,64 +166,83 @@ export default function AdminApplicationsPage() {
 
         {/* Applications Table */}
         <div className="rounded-2xl border border-slate-200/90 bg-white overflow-hidden shadow-xs">
-          <table className="min-w-full divide-y divide-slate-100 text-xs">
-            <thead className="bg-slate-50 text-slate-500 font-semibold">
-              <tr>
-                <th className="px-6 py-3.5 text-left">Applicant</th>
-                <th className="px-6 py-3.5 text-left">University</th>
-                <th className="px-6 py-3.5 text-left">Program Track</th>
-                <th className="px-6 py-3.5 text-left">Applied Date</th>
-                <th className="px-6 py-3.5 text-left">Status</th>
-                <th className="px-6 py-3.5 text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100 text-slate-700">
-              {filtered.map(app => (
-                <tr key={app.id} className="hover:bg-slate-50/50">
-                  <td className="px-6 py-4">
-                    <div className="font-bold text-slate-900">{app.name}</div>
-                    <div className="text-[11px] text-slate-400">{app.email}</div>
-                  </td>
-                  <td className="px-6 py-4 font-medium text-slate-800">{app.college}</td>
-                  <td className="px-6 py-4">
-                    <span className="rounded bg-indigo-50 border border-indigo-200 px-2 py-0.5 text-[10px] font-semibold text-indigo-700">
-                      {app.track}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 text-slate-500">{app.date}</td>
-                  <td className="px-6 py-4">
-                    <span className={`rounded-md px-2.5 py-0.5 text-[10px] font-bold border ${
-                      app.status === 'Approved'
-                        ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
-                        : app.status === 'Declined'
-                        ? 'bg-rose-50 border-rose-200 text-rose-800'
-                        : 'bg-amber-50 border-amber-200 text-amber-800'
-                    }`}>
-                      {app.status}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 text-right">
-                    <div className="flex items-center justify-end gap-1.5">
-                      <button
-                        onClick={() => updateStatus(app.id, 'Approved')}
-                        className="p-1.5 rounded-lg border border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 transition-colors cursor-pointer"
-                        title="Approve Applicant"
-                      >
-                        <Check className="h-4 w-4" />
-                      </button>
-                      <button
-                        onClick={() => updateStatus(app.id, 'Declined')}
-                        className="p-1.5 rounded-lg border border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100 transition-colors cursor-pointer"
-                        title="Decline Applicant"
-                      >
-                        <X className="h-4 w-4" />
-                      </button>
-                    </div>
-                  </td>
+          {loading ? (
+            <div className="flex items-center justify-center gap-2 p-10 text-xs text-slate-400">
+              <Loader2 className="h-4 w-4 animate-spin" /> Loading applications...
+            </div>
+          ) : filtered.length === 0 ? (
+            <div className="p-10 text-center text-xs text-slate-400">
+              No applications match this filter yet.
+            </div>
+          ) : (
+            <table className="min-w-full divide-y divide-slate-100 text-xs">
+              <thead className="bg-slate-50 text-slate-500 font-semibold">
+                <tr>
+                  <th className="px-6 py-3.5 text-left">Applicant</th>
+                  <th className="px-6 py-3.5 text-left">University</th>
+                  <th className="px-6 py-3.5 text-left">Program Track</th>
+                  <th className="px-6 py-3.5 text-left">Applied Date</th>
+                  <th className="px-6 py-3.5 text-left">Status</th>
+                  <th className="px-6 py-3.5 text-right">Actions</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="divide-y divide-slate-100 text-slate-700">
+                {filtered.map((app) => {
+                  const status: ApplicationStatus = app.application_status || 'approved';
+                  return (
+                    <tr key={app.id} className="hover:bg-slate-50/50">
+                      <td className="px-6 py-4">
+                        <div className="font-bold text-slate-900">{app.name}</div>
+                        <div className="text-[11px] text-slate-400">{app.email}</div>
+                      </td>
+                      <td className="px-6 py-4 font-medium text-slate-800">{app.college || '—'}</td>
+                      <td className="px-6 py-4">
+                        <span className="rounded bg-indigo-50 border border-indigo-200 px-2 py-0.5 text-[10px] font-semibold text-indigo-700">
+                          {app.program_interest || app.degree || '—'}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 text-slate-500">
+                        {app.created_at ? new Date(app.created_at).toLocaleDateString() : '—'}
+                      </td>
+                      <td className="px-6 py-4">
+                        <span
+                          className={`rounded-md px-2.5 py-0.5 text-[10px] font-bold border ${
+                            status === 'approved'
+                              ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
+                              : status === 'rejected'
+                              ? 'bg-rose-50 border-rose-200 text-rose-800'
+                              : 'bg-amber-50 border-amber-200 text-amber-800'
+                          }`}
+                        >
+                          {STATUS_LABEL[status]}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 text-right">
+                        <div className="flex items-center justify-end gap-1.5">
+                          <button
+                            onClick={() => updateStatus(app, 'approved')}
+                            disabled={updatingId === app.id || status === 'approved'}
+                            className="p-1.5 rounded-lg border border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                            title="Approve — unlocks portal login for this volunteer"
+                          >
+                            <Check className="h-4 w-4" />
+                          </button>
+                          <button
+                            onClick={() => updateStatus(app, 'rejected')}
+                            disabled={updatingId === app.id || status === 'rejected'}
+                            className="p-1.5 rounded-lg border border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100 transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                            title="Reject application"
+                          >
+                            <X className="h-4 w-4" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          )}
         </div>
       </main>
     </div>

@@ -15,13 +15,29 @@ import {
   AlertCircle
 } from 'lucide-react';
 
+const STATUS_STYLES: Record<string, string> = {
+  pending: 'border-amber-200 bg-amber-50 text-amber-800',
+  approved: 'border-emerald-200 bg-emerald-50 text-emerald-800',
+  rejected: 'border-rose-200 bg-rose-50 text-rose-800',
+};
+
+const STATUS_LABEL: Record<string, string> = {
+  pending: 'Under Review',
+  approved: 'Approved',
+  rejected: 'Rejected',
+};
+
 export default function StudentApplicationPage() {
   const { profile } = useAuth();
+  // Reaching this page at all means the account is approved (portal access is
+  // gated at login), so this reflects that — application_status is shown here
+  // mainly for completeness/consistency with the admin review screen.
+  const status = profile?.application_status || 'approved';
   const [submitted, setSubmitted] = useState(true);
-  const [college, setCollege] = useState('Delhi Technological University (DTU)');
-  const [degree, setDegree] = useState('B.Tech in Information Technology');
-  const [interest, setInterest] = useState('Community Digital Literacy & Youth Education');
-  const [sop, setSop] = useState('I want to volunteer my coding and digital skills to help teach basic computer literacy to underprivileged middle-school students in rural centers.');
+  const [college, setCollege] = useState(profile?.college || 'Delhi Technological University (DTU)');
+  const [degree, setDegree] = useState(profile?.degree || 'B.Tech in Information Technology');
+  const [interest, setInterest] = useState(profile?.program_interest || 'Community Digital Literacy & Youth Education');
+  const [sop, setSop] = useState(profile?.statement_of_purpose || 'I want to volunteer my coding and digital skills to help teach basic computer literacy to underprivileged middle-school students in rural centers.');
   const [saveSuccess, setSaveSuccess] = useState(false);
 
   const handleUpdate = (e: React.FormEvent) => {
@@ -53,9 +69,9 @@ export default function StudentApplicationPage() {
           </div>
 
           <div className="flex items-center gap-2">
-            <span className="inline-flex items-center gap-1.5 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-bold text-amber-800 shadow-2xs">
-              <Clock className="h-4 w-4 text-amber-600" />
-              Status: Under Review
+            <span className={`inline-flex items-center gap-1.5 rounded-xl border px-3 py-2 text-xs font-bold shadow-2xs ${STATUS_STYLES[status]}`}>
+              <Clock className="h-4 w-4" />
+              Status: {STATUS_LABEL[status]}
             </span>
           </div>
         </div>

@@ -5,6 +5,16 @@ import { useRouter } from 'next/navigation';
 import { createClient, isSupabaseConfigured } from '@/lib/supabase/client';
 import { UserProfile, UserRole } from '@/lib/supabase/types';
 
+// Extra fields collected on the "New Volunteer" application form (login page apply tab)
+export interface ApplicationDetails {
+  phone?: string;
+  college?: string;
+  degree?: string;
+  skills?: string;
+  program_interest?: string;
+  statement_of_purpose?: string;
+}
+
 interface AuthContextType {
   user: { id: string; email: string } | null;
   profile: UserProfile | null;
@@ -12,7 +22,12 @@ interface AuthContextType {
   isLoading: boolean;
   isConfigured: boolean;
   login: (email: string, password: string) => Promise<{ success: boolean; role?: UserRole; error?: string }>;
-  register: (name: string, email: string, password: string) => Promise<{ success: boolean; error?: string }>;
+  register: (
+    name: string,
+    email: string,
+    password: string,
+    application?: ApplicationDetails
+  ) => Promise<{ success: boolean; error?: string }>;
   switchRole: (targetRole: UserRole) => void;
   logout: () => Promise<void>;
 }
@@ -38,6 +53,7 @@ const DEMO_ACCOUNTS: Record<string, { password: string; profile: UserProfile }> 
       email: 'student@ngo.org',
       role: 'student',
       created_at: new Date().toISOString(),
+      application_status: 'approved', // demo account is already an approved intern
     },
   },
   'admin@ngo.org': {
@@ -48,6 +64,7 @@ const DEMO_ACCOUNTS: Record<string, { password: string; profile: UserProfile }> 
       email: 'admin@ngo.org',
       role: 'admin',
       created_at: new Date().toISOString(),
+      application_status: 'approved',
     },
   },
 };
@@ -153,6 +170,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           }
 
           const userProfile = profileData as UserProfile;
+
+          // Gate portal access: new volunteers can't sign in until an NGO admin
+          // approves their internship application. Missing status (legacy/admin
+          // rows) is treated as approved.
+          if (userProfile.application_status === 'pending') {
+            await supabase.auth.signOut();
+            setIsLoading(false);
+            return {
+              success: false,
+              error: 'Your internship application is still under review. We\u2019ll email you as soon as an NGO admin approves it — then you can sign in here.',
+            };
+          }
+          if (userProfile.application_status === 'rejected') {
+            await supabase.auth.signOut();
+            setIsLoading(false);
+            return {
+              success: false,
+              error: 'Your internship application was not approved, so portal access is unavailable. Please contact the NGO team for details.',
+            };
+          }
+
           setUser({ id: data.user.id, email: data.user.email || '' });
           setProfile(userProfile);
           setRole(userProfile.role);
@@ -168,6 +206,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (candidate) {
           if (candidate.password === password) {
             const loggedInProfile: UserProfile = candidate.profile;
+
+            // Same application-gate as the Supabase path: pending/rejected
+            // volunteers cannot access the portal yet.
+            if (loggedInProfile.application_status === 'pending') {
+              setIsLoading(false);
+              return {
+                success: false,
+                error: 'Your internship application is still under review. We\u2019ll email you as soon as an NGO admin approves it — then you can sign in here.',
+              };
+            }
+            if (loggedInProfile.application_status === 'rejected') {
+              setIsLoading(false);
+              return {
+                success: false,
+                error: 'Your internship application was not approved, so portal access is unavailable. Please contact the NGO team for details.',
+              };
+            }
+
             setUser({ id: loggedInProfile.id, email: loggedInProfile.email });
             setProfile(loggedInProfile);
             setRole(loggedInProfile.role);
@@ -192,7 +248,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const register = async (name: string, email: string, password: string): Promise<{ success: boolean; error?: string }> => {
+  // Submits a new volunteer's internship application. This intentionally does
+  // NOT log the applicant in or grant portal access — application_status
+  // starts as 'pending' and only an NGO admin approving it (see
+  // /admin/applications) unlocks the login form for this account.
+  const register = async (
+    name: string,
+    email: string,
+    password: string,
+    application?: ApplicationDetails
+  ): Promise<{ success: boolean; error?: string }> => {
     setIsLoading(true);
     try {
       const normalizedEmail = email.trim().toLowerCase();
@@ -202,7 +267,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           email: normalizedEmail,
           password,
           options: {
-            data: { name: name.trim() },
+            data: {
+              name: name.trim(),
+              phone: application?.phone?.trim() || null,
+              college: application?.college?.trim() || null,
+              degree: application?.degree?.trim() || null,
+              skills: application?.skills?.trim() || null,
+              program_interest: application?.program_interest || null,
+              statement_of_purpose: application?.statement_of_purpose?.trim() || null,
+            },
           },
         });
 
@@ -211,17 +284,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           return { success: false, error: error.message };
         }
 
-        if (data.user) {
-          setUser({ id: data.user.id, email: data.user.email || '' });
-          const initialProfile: UserProfile = {
-            id: data.user.id,
-            name: name.trim(),
-            email: normalizedEmail,
-            role: 'student',
-          };
-          setProfile(initialProfile);
-          setRole('student');
-          setRoleCookie('student', data.user.id);
+        // Supabase may return an active session if email confirmation is
+        // disabled on the project. Sign back out immediately so the applicant
+        // cannot enter the portal before an admin approves them — they stay on
+        // the "application submitted" screen and use /login once approved.
+        if (data.session) {
+          await supabase.auth.signOut();
         }
 
         setIsLoading(false);
@@ -240,6 +308,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           email: normalizedEmail,
           role: 'student',
           created_at: new Date().toISOString(),
+          phone: application?.phone?.trim(),
+          college: application?.college?.trim(),
+          degree: application?.degree?.trim(),
+          skills: application?.skills?.trim(),
+          program_interest: application?.program_interest,
+          statement_of_purpose: application?.statement_of_purpose?.trim(),
+          application_status: 'pending',
         };
 
         storedUsers[normalizedEmail] = {
@@ -247,13 +322,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           profile: newProfile,
         };
         localStorage.setItem('cep_registered_users', JSON.stringify(storedUsers));
-        
-        setUser({ id: newId, email: normalizedEmail });
-        setProfile(newProfile);
-        setRole('student');
-        setRoleCookie('student', newId);
-        localStorage.setItem('cep_demo_session', JSON.stringify(newProfile));
 
+        // No session/cookie is set here — the applicant is not logged in.
+        // They'll be able to sign in from the "Sign In" tab once an NGO admin
+        // approves the application from /admin/applications.
         setIsLoading(false);
         return { success: true };
       }
