@@ -16,11 +16,13 @@ import {
   Settings,
   LogOut,
   ShieldCheck,
-  GraduationCap
+  GraduationCap,
+  CalendarOff,
+  AlertTriangle,
 } from 'lucide-react';
 
 interface SidebarProps {
-  role: 'student' | 'admin';
+  role: 'student' | 'admin' | 'intern';
 }
 
 export function Sidebar({ role }: SidebarProps) {
@@ -36,9 +38,22 @@ export function Sidebar({ role }: SidebarProps) {
     { label: 'Profile', href: '/student/profile', icon: User },
   ];
 
+  const internNav = [
+    { label: 'Dashboard', href: '/intern/dashboard', icon: LayoutDashboard },
+    { label: 'Application', href: '/intern/application', icon: FileText },
+    { label: 'Project', href: '/intern/project', icon: Briefcase },
+    { label: 'Attendance', href: '/intern/attendance', icon: CalendarCheck },
+    { label: 'Leave', href: '/intern/leave', icon: CalendarOff },
+    { label: 'Report Issue', href: '/intern/report', icon: AlertTriangle },
+    { label: 'Work Log', href: '/intern/work-log', icon: ClipboardList },
+    { label: 'Profile', href: '/intern/profile', icon: User },
+  ];
+
   const adminNav = [
     { label: 'Dashboard', href: '/admin/dashboard', icon: LayoutDashboard },
     { label: 'Applications', href: '/admin/applications', icon: FileText },
+    { label: 'Leave Requests', href: '/admin/leave', icon: CalendarOff },
+    { label: 'Issue Reports', href: '/admin/issues', icon: AlertTriangle },
     { label: 'Students', href: '/admin/students', icon: Users },
     { label: 'Projects', href: '/admin/projects', icon: Briefcase },
     { label: 'Attendance', href: '/admin/attendance', icon: CalendarCheck },
@@ -46,7 +61,7 @@ export function Sidebar({ role }: SidebarProps) {
     { label: 'Settings', href: '/admin/settings', icon: Settings },
   ];
 
-  const items = role === 'admin' ? adminNav : studentNav;
+  const items = role === 'admin' ? adminNav : role === 'intern' ? internNav : studentNav;
 
   return (
     <motion.aside
@@ -65,19 +80,29 @@ export function Sidebar({ role }: SidebarProps) {
         <div className="flex items-center gap-3">
           <motion.div
             className={`flex h-10 w-10 items-center justify-center rounded-xl text-white font-bold shadow-sm ${
-              role === 'admin' ? 'bg-purple-600 shadow-purple-500/20' : 'bg-indigo-600 shadow-indigo-500/20'
+              role === 'admin'
+                ? 'bg-purple-600 shadow-purple-500/20'
+                : role === 'intern'
+                ? 'bg-teal-600 shadow-teal-500/20'
+                : 'bg-indigo-600 shadow-indigo-500/20'
             }`}
             whileHover={{ scale: 1.1, rotate: 5 }}
             transition={{ type: 'spring', stiffness: 400, damping: 15 }}
           >
-            {role === 'admin' ? <ShieldCheck className="h-5 w-5" /> : <GraduationCap className="h-5 w-5" />}
+            {role === 'admin' ? (
+              <ShieldCheck className="h-5 w-5" />
+            ) : role === 'intern' ? (
+              <Briefcase className="h-5 w-5" />
+            ) : (
+              <GraduationCap className="h-5 w-5" />
+            )}
           </motion.div>
           <div className="flex flex-col min-w-0">
             <span className="truncate text-sm font-semibold text-slate-900">
-              {profile?.name || (role === 'admin' ? 'NGO Admin' : 'Student')}
+              {profile?.name || (role === 'admin' ? 'NGO Admin' : role === 'intern' ? 'Intern' : 'Student')}
             </span>
             <span className="text-xs text-slate-500 capitalize">
-              {role === 'admin' ? 'Portal Administrator' : 'Internship Candidate'}
+              {role === 'admin' ? 'Portal Administrator' : role === 'intern' ? 'Active Intern' : 'Internship Candidate'}
             </span>
           </div>
         </div>

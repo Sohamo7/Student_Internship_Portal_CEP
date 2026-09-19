@@ -21,6 +21,8 @@ import {
   CalendarCheck,
   ClipboardList,
   ShieldCheck,
+  CalendarOff,
+  AlertTriangle,
   ArrowRight
 } from 'lucide-react';
 
@@ -260,6 +262,60 @@ export default function AdminDashboardPage() {
               </p>
               <span className="mt-4 inline-flex items-center gap-1 text-xs font-bold text-indigo-700 group-hover:translate-x-0.5 transition-transform">
                 Open Reports <ArrowRight className="h-3.5 w-3.5" />
+              </span>
+            </Link>
+          </StaggerItem>
+
+          {/* 6. Leave Requests */}
+          <StaggerItem>
+            <Link
+              href="/admin/leave"
+              className="group rounded-2xl border border-slate-200/90 bg-white p-6 shadow-xs transition-all hover:border-purple-400 hover:shadow-md block card-3d"
+            >
+              <div className="flex items-center justify-between">
+                <motion.div
+                  className="flex h-10 w-10 items-center justify-center rounded-xl bg-purple-50 text-purple-600 group-hover:bg-purple-600 group-hover:text-white transition-colors"
+                  whileHover={{ rotate: -10, scale: 1.1 }}
+                >
+                  <CalendarOff className="h-5 w-5" />
+                </motion.div>
+                <span className="rounded-md bg-amber-50 border border-amber-200 px-2 py-0.5 text-[10px] font-bold text-amber-700">
+                  Pending Action
+                </span>
+              </div>
+              <h3 className="mt-4 font-bold text-slate-900 group-hover:text-purple-600 transition-colors">Leave Approvals</h3>
+              <p className="mt-1 text-xs text-slate-600">
+                Review absence requests from interns and volunteers, grant approval, or decline.
+              </p>
+              <span className="mt-4 inline-flex items-center gap-1 text-xs font-bold text-purple-700 group-hover:translate-x-0.5 transition-transform">
+                Manage Leaves <ArrowRight className="h-3.5 w-3.5" />
+              </span>
+            </Link>
+          </StaggerItem>
+
+          {/* 7. Issue Reports */}
+          <StaggerItem>
+            <Link
+              href="/admin/issues"
+              className="group rounded-2xl border border-slate-200/90 bg-white p-6 shadow-xs transition-all hover:border-rose-400 hover:shadow-md block card-3d"
+            >
+              <div className="flex items-center justify-between">
+                <motion.div
+                  className="flex h-10 w-10 items-center justify-center rounded-xl bg-rose-50 text-rose-600 group-hover:bg-rose-600 group-hover:text-white transition-colors"
+                  whileHover={{ rotate: 10, scale: 1.1 }}
+                >
+                  <AlertTriangle className="h-5 w-5" />
+                </motion.div>
+                <span className="rounded-md bg-rose-50 border border-rose-200 px-2 py-0.5 text-[10px] font-bold text-rose-700">
+                  Helpdesk
+                </span>
+              </div>
+              <h3 className="mt-4 font-bold text-slate-900 group-hover:text-rose-600 transition-colors">Issue Reports</h3>
+              <p className="mt-1 text-xs text-slate-600">
+                Review grievances and blockers submitted by interns, track status, and dispatch solutions.
+              </p>
+              <span className="mt-4 inline-flex items-center gap-1 text-xs font-bold text-rose-700 group-hover:translate-x-0.5 transition-transform">
+                Open Helpdesk <ArrowRight className="h-3.5 w-3.5" />
               </span>
             </Link>
           </StaggerItem>

@@ -21,7 +21,7 @@ import {
   Clock,
 } from 'lucide-react';
 
-export default function StudentDashboardPage() {
+export default function InternDashboardPage() {
   const router = useRouter();
   const { user, role } = useAuth();
 
@@ -34,14 +34,14 @@ export default function StudentDashboardPage() {
 
   return (
     <div className="flex flex-1 flex-col md:flex-row">
-      <Sidebar role="student" />
+      <Sidebar role="intern" />
       <main className="flex-1 overflow-y-auto p-6 lg:p-8 space-y-8 gradient-bg-animated">
         {/* Welcome Header */}
         <FadeInUp>
           <div className="flex flex-col gap-1">
             <div className="flex items-center gap-2">
               <h1 className="text-2xl font-extrabold tracking-tight text-slate-900">
-                Student Dashboard
+                Intern Dashboard
               </h1>
               <PulseDot color="#10b981" size={8} />
             </div>
@@ -55,20 +55,20 @@ export default function StudentDashboardPage() {
         {/* Quick Stats Grid */}
         <StaggerContainer className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4" staggerDelay={0.1}>
           <StaggerItem>
-            <Link href="/student/application" className="block">
+            <Link href="/intern/application" className="block">
               <StatCard
                 title="Application"
-                value="Submitted"
+                value="Approved"
                 subtitle="Click to view submission details"
-                badge="Under Review"
-                badgeColor="amber"
-                icon={<FileText className="h-5 w-5 text-amber-600" />}
+                badge="Active Intern"
+                badgeColor="emerald"
+                icon={<FileText className="h-5 w-5 text-emerald-600" />}
               />
             </Link>
           </StaggerItem>
 
           <StaggerItem>
-            <Link href="/student/project" className="block">
+            <Link href="/intern/project" className="block">
               <StatCard
                 title="Assigned Project"
                 value="Digital Literacy"
@@ -81,7 +81,7 @@ export default function StudentDashboardPage() {
           </StaggerItem>
 
           <StaggerItem>
-            <Link href="/student/attendance" className="block">
+            <Link href="/intern/attendance" className="block">
               <StatCard
                 title="Attendance"
                 value="23 / 24 Days"
@@ -94,7 +94,7 @@ export default function StudentDashboardPage() {
           </StaggerItem>
 
           <StaggerItem>
-            <Link href="/student/work-log" className="block">
+            <Link href="/intern/work-log" className="block">
               <StatCard
                 title="Work Log"
                 value="3 Logged"

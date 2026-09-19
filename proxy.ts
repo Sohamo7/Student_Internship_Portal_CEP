@@ -7,8 +7,8 @@ export function proxy(request: NextRequest) {
   const userId = request.cookies.get('cep_user_id')?.value;
   const isAuthenticated = Boolean(userRole && userId);
 
-  // 1. Guard Student Routes (/student/*)
-  if (pathname.startsWith('/student')) {
+  // 1. Guard Student & Intern Routes (/student/*, /intern/*)
+  if (pathname.startsWith('/student') || pathname.startsWith('/intern')) {
     if (!isAuthenticated) {
       const loginUrl = new URL('/login', request.url);
       loginUrl.searchParams.set('redirect', pathname);
@@ -16,7 +16,7 @@ export function proxy(request: NextRequest) {
     }
 
     if (userRole === 'admin') {
-      // Admin should not be navigating as a student
+      // Admin should not be navigating as a student/intern
       return NextResponse.redirect(new URL('/admin/dashboard', request.url));
     }
   }
@@ -30,7 +30,7 @@ export function proxy(request: NextRequest) {
     }
 
     if (userRole !== 'admin') {
-      // Student is blocked from accessing NGO Admin dashboard (Task 9 & Security Rule)
+      // Student/Intern is blocked from accessing NGO Admin dashboard (Task 9 & Security Rule)
       return NextResponse.redirect(new URL('/unauthorized', request.url));
     }
   }
@@ -39,6 +39,9 @@ export function proxy(request: NextRequest) {
   if ((pathname === '/login' || pathname === '/register') && isAuthenticated) {
     if (userRole === 'admin') {
       return NextResponse.redirect(new URL('/admin/dashboard', request.url));
+    }
+    if (userRole === 'intern') {
+      return NextResponse.redirect(new URL('/intern/dashboard', request.url));
     }
     return NextResponse.redirect(new URL('/student/dashboard', request.url));
   }
@@ -49,6 +52,7 @@ export function proxy(request: NextRequest) {
 export const config = {
   matcher: [
     '/student/:path*',
+    '/intern/:path*',
     '/admin/:path*',
     '/login',
     '/register',

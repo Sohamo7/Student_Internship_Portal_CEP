@@ -21,7 +21,7 @@ import {
   AlertCircle,
 } from 'lucide-react';
 
-export default function StudentWorkLogPage() {
+export default function InternWorkLogPage() {
   const { user, profile } = useAuth();
   const [logs, setLogs] = useState<DailyWorkLog[]>([]);
   const [date, setDate] = useState(() => new Date().toISOString().split('T')[0]);
@@ -31,10 +31,10 @@ export default function StudentWorkLogPage() {
   const [showSuccess, setShowSuccess] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
 
-  // Load student's daily logs
+  // Load intern's daily logs
   useEffect(() => {
     const all = getStoredDailyWorkLogs();
-    const userEmail = profile?.email || user?.email || 'student@ngo.org';
+    const userEmail = profile?.email || user?.email || 'intern@ngo.org';
     const userLogs = all.filter(
       (l) => l.intern_email.toLowerCase() === userEmail.toLowerCase()
     );
@@ -64,9 +64,9 @@ export default function StudentWorkLogPage() {
 
     setSubmitting(true);
     const newLog = addDailyWorkLog({
-      intern_id: user?.id || 'demo-student-uuid-001',
-      intern_name: profile?.name || 'Rahul Sharma',
-      intern_email: profile?.email || 'student@ngo.org',
+      intern_id: user?.id || 'demo-intern-uuid-001',
+      intern_name: profile?.name || 'Aarav Patel',
+      intern_email: profile?.email || 'intern@ngo.org',
       date,
       hours: numHours,
       tasks: tasks.trim(),
@@ -79,7 +79,7 @@ export default function StudentWorkLogPage() {
     setTimeout(() => setShowSuccess(false), 5000);
   };
 
-  // Group logs by week
+  // Group logs by week for clean presentation
   const groupedByWeek = logs.reduce<Record<string, DailyWorkLog[]>>((acc, log) => {
     if (!acc[log.week_label]) {
       acc[log.week_label] = [];
@@ -97,13 +97,13 @@ export default function StudentWorkLogPage() {
 
   return (
     <div className="flex flex-1 flex-col md:flex-row bg-slate-50/60">
-      <Sidebar role="student" />
+      <Sidebar role="intern" />
 
       <main className="flex-1 p-6 md:p-8 space-y-6 max-w-5xl">
         {/* Header */}
         <div>
           <Link
-            href="/student/dashboard"
+            href="/intern/dashboard"
             className="inline-flex items-center gap-1.5 text-xs font-semibold text-indigo-600 hover:text-indigo-700 mb-1"
           >
             <ArrowLeft className="h-3.5 w-3.5" /> Back to Dashboard
@@ -325,4 +325,3 @@ export default function StudentWorkLogPage() {
     </div>
   );
 }
-

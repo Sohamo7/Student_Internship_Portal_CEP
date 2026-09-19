@@ -56,6 +56,17 @@ const DEMO_ACCOUNTS: Record<string, { password: string; profile: UserProfile }> 
       application_status: 'approved', // demo account is already an approved intern
     },
   },
+  'intern@ngo.org': {
+    password: 'password123',
+    profile: {
+      id: 'demo-intern-uuid-001',
+      name: 'Aarav Patel',
+      email: 'intern@ngo.org',
+      role: 'intern',
+      created_at: new Date().toISOString(),
+      application_status: 'approved',
+    },
+  },
   'admin@ngo.org': {
     password: 'password123',
     profile: {
@@ -135,6 +146,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setRoleCookie('admin', adminProfile.id);
       localStorage.setItem('cep_demo_session', JSON.stringify(adminProfile));
       router.push('/admin/dashboard');
+    } else if (targetRole === 'intern') {
+      const internProfile = DEMO_ACCOUNTS['intern@ngo.org'].profile;
+      setUser({ id: internProfile.id, email: internProfile.email });
+      setProfile(internProfile);
+      setRole('intern');
+      setRoleCookie('intern', internProfile.id);
+      localStorage.setItem('cep_demo_session', JSON.stringify(internProfile));
+      router.push('/intern/dashboard');
     } else {
       const studentProfile = DEMO_ACCOUNTS['student@ngo.org'].profile;
       setUser({ id: studentProfile.id, email: studentProfile.email });

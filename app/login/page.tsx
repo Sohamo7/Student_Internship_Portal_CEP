@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, Suspense } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/lib/auth/auth-context';
 import {
@@ -10,6 +10,7 @@ import {
   AlertCircle,
   Shield,
   GraduationCap,
+  Briefcase,
   User,
   Phone,
   School,
@@ -60,15 +61,20 @@ function SignInForm() {
       router.push(redirectPath);
     } else if (result.role === 'admin') {
       router.push('/admin/dashboard');
+    } else if (result.role === 'intern') {
+      router.push('/intern/dashboard');
     } else {
       router.push('/student/dashboard');
     }
   };
 
-  const handleFillDemo = (type: 'student' | 'admin') => {
+  const handleFillDemo = (type: 'student' | 'admin' | 'intern') => {
     setError(null);
     if (type === 'student') {
       setEmail('student@ngo.org');
+      setPassword('password123');
+    } else if (type === 'intern') {
+      setEmail('intern@ngo.org');
       setPassword('password123');
     } else {
       setEmail('admin@ngo.org');
@@ -141,26 +147,34 @@ function SignInForm() {
       </form>
 
       {/* Quick Demo Fillers */}
-      <div className="pt-6 border-t border-slate-100">
+      <div className="pt-2">
         <p className="text-center text-[11px] font-medium text-slate-500 mb-3">
           ⚡ Quick 1-Click Verification Fillers:
         </p>
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-3 gap-2">
           <button
             type="button"
             onClick={() => handleFillDemo('student')}
-            className="flex items-center justify-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-medium text-slate-700 hover:bg-indigo-50 hover:text-indigo-600 hover:border-indigo-200 transition-colors cursor-pointer"
+            className="flex items-center justify-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-2 text-xs font-medium text-slate-700 hover:bg-indigo-50 hover:text-indigo-600 hover:border-indigo-200 transition-colors cursor-pointer"
           >
-            <GraduationCap className="h-3.5 w-3.5 text-indigo-500" />
-            <span>Demo Student</span>
+            <GraduationCap className="h-3.5 w-3.5 text-indigo-500 shrink-0" />
+            <span className="truncate">Demo Student</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => handleFillDemo('intern')}
+            className="flex items-center justify-center gap-1.5 rounded-lg border border-teal-200 bg-teal-50/60 px-2.5 py-2 text-xs font-medium text-teal-800 hover:bg-teal-100 hover:border-teal-300 transition-colors cursor-pointer"
+          >
+            <Briefcase className="h-3.5 w-3.5 text-teal-600 shrink-0" />
+            <span className="truncate">Demo Intern</span>
           </button>
           <button
             type="button"
             onClick={() => handleFillDemo('admin')}
-            className="flex items-center justify-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-medium text-slate-700 hover:bg-purple-50 hover:text-purple-600 hover:border-purple-200 transition-colors cursor-pointer"
+            className="flex items-center justify-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-2 text-xs font-medium text-slate-700 hover:bg-purple-50 hover:text-purple-600 hover:border-purple-200 transition-colors cursor-pointer"
           >
-            <Shield className="h-3.5 w-3.5 text-purple-500" />
-            <span>Demo Admin</span>
+            <Shield className="h-3.5 w-3.5 text-purple-500 shrink-0" />
+            <span className="truncate">Demo Admin</span>
           </button>
         </div>
       </div>
@@ -452,9 +466,23 @@ function ApplyForm({ onSubmitted }: { onSubmitted: () => void }) {
 }
 
 function LoginTabs() {
+  const router = useRouter();
   const searchParams = useSearchParams();
+  const { user, profile, role, isLoading } = useAuth();
   const initialTab: Tab = searchParams.get('tab') === 'apply' ? 'apply' : 'signin';
   const [tab, setTab] = useState<Tab>(initialTab);
+
+  useEffect(() => {
+    if (!isLoading && user && profile) {
+      if (role === 'admin') {
+        router.push('/admin/dashboard');
+      } else if (role === 'intern') {
+        router.push('/intern/dashboard');
+      } else {
+        router.push('/student/dashboard');
+      }
+    }
+  }, [user, profile, role, isLoading, router]);
 
   return (
     <div className="w-full max-w-md space-y-8">

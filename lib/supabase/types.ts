@@ -1,4 +1,4 @@
-export type UserRole = 'student' | 'admin';
+export type UserRole = 'student' | 'admin' | 'intern';
 
 // Lifecycle of a volunteer's internship application:
 // pending  -> submitted via the "Apply" tab on /login, cannot sign in yet
@@ -23,4 +23,41 @@ export interface UserProfile {
   // Admin accounts and legacy rows may not have this set — treat missing as approved.
   application_status?: ApplicationStatus;
   reviewed_at?: string;
+}
+
+export type LeaveStatus = 'pending' | 'approved' | 'rejected';
+
+export interface LeaveRequest {
+  id: string;
+  applicant_id: string;
+  applicant_name: string;
+  applicant_email: string;
+  applicant_role: 'intern' | 'student';
+  leave_type: string;
+  start_date: string;
+  end_date: string;
+  days_count: number;
+  reason: string;
+  status: LeaveStatus;
+  created_at: string;
+  reviewed_at?: string;
+  admin_comment?: string;
+}
+
+export type IssueStatus = 'open' | 'in_progress' | 'resolved';
+export type IssuePriority = 'low' | 'medium' | 'high' | 'urgent';
+
+export interface ReportedIssue {
+  id: string;
+  applicant_id: string;
+  applicant_name: string;
+  applicant_email: string;
+  category: string;
+  priority: IssuePriority;
+  title: string;
+  description: string;
+  status: IssueStatus;
+  created_at: string;
+  admin_solution?: string;
+  resolved_at?: string;
 }
