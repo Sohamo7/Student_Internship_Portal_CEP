@@ -1,102 +1,60 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import Link from 'next/link';
 import { Sidebar } from '@/components/sidebar';
-import { createClient, isSupabaseConfigured } from '@/lib/supabase/client';
-import { ApplicationStatus, UserProfile } from '@/lib/supabase/types';
+import { mapsLink } from '@/lib/geolocation';
 import {
-  Search,
   ArrowLeft,
   Check,
-  X,
-  Loader2,
+  MapPin,
+  ShieldAlert,
 } from 'lucide-react';
 
-type FilterOption = 'All' | ApplicationStatus;
-
-const STATUS_LABEL: Record<ApplicationStatus, string> = {
-  pending: 'Pending',
-  approved: 'Approved',
-  rejected: 'Rejected',
-};
-
-// Reads/writes the same localStorage record that the "Apply" tab on /login
-// writes to in demo/offline mode, so approving here really unlocks sign in.
-function readLocalApplications(): UserProfile[] {
-  try {
-    const stored = JSON.parse(localStorage.getItem('cep_registered_users') || '{}');
-    return Object.values(stored as Record<string, { profile: UserProfile }>).map((u) => u.profile);
-  } catch {
-    return [];
-  }
+interface AdminAttendanceRow {
+  id: number;
+  student: string;
+  inTime: string;
+  outTime: string;
+  inLoc: { latitude: number; longitude: number };
+  outLoc: { latitude: number; longitude: number };
+  siteLoc: { latitude: number; longitude: number }; // the NGO center's registered location
+  verified: boolean;
 }
 
-function writeLocalApplicationStatus(email: string, status: ApplicationStatus) {
-  const stored = JSON.parse(localStorage.getItem('cep_registered_users') || '{}');
-  if (stored[email]) {
-    stored[email].profile.application_status = status;
-    stored[email].profile.reviewed_at = new Date().toISOString();
-    localStorage.setItem('cep_registered_users', JSON.stringify(stored));
-  }
+// Straight-line distance between two GPS points, in meters (Haversine formula).
+function distanceMeters(a: { latitude: number; longitude: number }, b: { latitude: number; longitude: number }) {
+  const R = 6371000;
+  const dLat = ((b.latitude - a.latitude) * Math.PI) / 180;
+  const dLon = ((b.longitude - a.longitude) * Math.PI) / 180;
+  const lat1 = (a.latitude * Math.PI) / 180;
+  const lat2 = (b.latitude * Math.PI) / 180;
+  const h =
+    Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLon / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(h));
 }
 
-export default function AdminApplicationsPage() {
-  const [applications, setApplications] = useState<UserProfile[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [updatingId, setUpdatingId] = useState<string | null>(null);
-  const [filter, setFilter] = useState<FilterOption>('All');
-  const [searchTerm, setSearchTerm] = useState('');
-  const configured = isSupabaseConfigured();
+const SITE: AdminAttendanceRow['siteLoc'] = { latitude: 28.6139, longitude: 77.209 }; // NGO center (demo)
+const FLAG_RADIUS_METERS = 500;
 
-  const loadApplications = async () => {
-    setLoading(true);
-    if (configured) {
-      const supabase = createClient();
-      const { data } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('role', 'student')
-        .order('created_at', { ascending: false });
-      setApplications((data as UserProfile[]) || []);
-    } else {
-      setApplications(readLocalApplications());
-    }
-    setLoading(false);
+export default function AdminAttendancePage() {
+  const [records, setRecords] = useState<AdminAttendanceRow[]>([
+    { id: 1, student: 'Rahul Sharma', inTime: '09:15 AM', outTime: '01:30 PM', inLoc: { latitude: 28.6141, longitude: 77.2093 }, outLoc: { latitude: 28.614, longitude: 77.2091 }, siteLoc: SITE, verified: true },
+    { id: 2, student: 'Ananya Verma', inTime: '09:00 AM', outTime: '01:05 PM', inLoc: { latitude: 28.6137, longitude: 77.2088 }, outLoc: { latitude: 28.6138, longitude: 77.209 }, siteLoc: SITE, verified: true },
+    { id: 3, student: 'Sneha Kulkarni', inTime: '09:20 AM', outTime: '01:10 PM', inLoc: { latitude: 28.6142, longitude: 77.2095 }, outLoc: { latitude: 28.6143, longitude: 77.2096 }, siteLoc: SITE, verified: true },
+    { id: 4, student: 'Vikram Choudhury', inTime: '09:45 AM', outTime: '12:50 PM', inLoc: { latitude: 28.62, longitude: 77.225 }, outLoc: { latitude: 28.6205, longitude: 77.2255 }, siteLoc: SITE, verified: false },
+    { id: 5, student: 'Kavita Nair', inTime: '09:10 AM', outTime: '01:00 PM', inLoc: { latitude: 28.6139, longitude: 77.2092 }, outLoc: { latitude: 28.614, longitude: 77.2093 }, siteLoc: SITE, verified: false },
+  ]);
+
+  const verifyStudent = (id: number) => {
+    setRecords(records.map(r => r.id === id ? { ...r, verified: true } : r));
   };
 
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect, react-hooks/exhaustive-deps
-    loadApplications();
-  }, []);
-
-  const updateStatus = async (applicant: UserProfile, newStatus: ApplicationStatus) => {
-    setUpdatingId(applicant.id);
-    if (configured) {
-      const supabase = createClient();
-      await supabase
-        .from('profiles')
-        .update({ application_status: newStatus, reviewed_at: new Date().toISOString() })
-        .eq('id', applicant.id);
-    } else {
-      writeLocalApplicationStatus(applicant.email, newStatus);
-    }
-    setApplications((prev) =>
-      prev.map((a) => (a.id === applicant.id ? { ...a, application_status: newStatus } : a))
-    );
-    setUpdatingId(null);
+  const verifyAll = () => {
+    setRecords(records.map(r => (
+      distanceMeters(r.inLoc, r.siteLoc) <= FLAG_RADIUS_METERS ? { ...r, verified: true } : r
+    )));
   };
-
-  const filtered = applications.filter((a) => {
-    const status: ApplicationStatus = a.application_status || 'approved';
-    const matchesFilter = filter === 'All' || status === filter;
-    const term = searchTerm.toLowerCase();
-    const matchesSearch =
-      a.name.toLowerCase().includes(term) || (a.college || '').toLowerCase().includes(term);
-    return matchesFilter && matchesSearch;
-  });
-
-  const pendingCount = applications.filter((a) => (a.application_status || 'approved') === 'pending').length;
 
   return (
     <div className="flex flex-1 flex-col md:flex-row bg-slate-50/60">
@@ -113,136 +71,82 @@ export default function AdminApplicationsPage() {
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <h1 className="text-2xl font-black tracking-tight text-slate-900 sm:text-3xl">
-                Review Student Applications
+                Attendance Verification
               </h1>
               <p className="text-sm text-slate-600">
-                Approving an applicant here is what unlocks the <strong>Sign In</strong> tab on their login page —
-                new volunteers can&apos;t access the portal until you do this.
+                Today: Saturday, September 5, 2026. Each check-in/out below carries the volunteer&apos;s captured
+                GPS pin — rows flagged in red were logged more than {FLAG_RADIUS_METERS}m from the registered NGO
+                site, so double-check before confirming those hours.
               </p>
             </div>
 
-            <div className="flex items-center gap-2">
-              <span className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-1.5 text-xs font-bold text-amber-800">
-                {pendingCount} Pending Intake
-              </span>
-            </div>
-          </div>
-          {!configured && (
-            <p className="mt-2 text-[11px] text-slate-400">
-              Demo mode: reading applications submitted via the Apply tab from this browser&apos;s local storage.
-            </p>
-          )}
-        </div>
-
-        {/* Filters and Search Bar */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-4 rounded-2xl border border-slate-200/90 shadow-xs">
-          <div className="relative flex-1 max-w-md">
-            <Search className="absolute left-3.5 top-3 h-4 w-4 text-slate-400" />
-            <input
-              type="text"
-              placeholder="Search applicant name or university..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full rounded-xl border border-slate-200 pl-10 pr-3.5 py-2 text-xs text-slate-900 focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20"
-            />
-          </div>
-
-          <div className="flex items-center gap-1.5 text-xs font-semibold">
-            {(['All', 'pending', 'approved', 'rejected'] as FilterOption[]).map((f) => (
-              <button
-                key={f}
-                onClick={() => setFilter(f)}
-                className={`px-3 py-1.5 rounded-lg border transition-all cursor-pointer ${
-                  filter === f
-                    ? 'bg-purple-600 text-white border-purple-600'
-                    : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
-                }`}
-              >
-                {f === 'All' ? 'All' : STATUS_LABEL[f]}
-              </button>
-            ))}
+            <button
+              onClick={verifyAll}
+              className="inline-flex items-center gap-1.5 rounded-xl bg-purple-600 px-4 py-2 text-xs font-semibold text-white shadow-sm hover:bg-purple-500 cursor-pointer shrink-0"
+            >
+              <Check className="h-4 w-4" /> Verify All In-Range Check-ins
+            </button>
           </div>
         </div>
 
-        {/* Applications Table */}
         <div className="rounded-2xl border border-slate-200/90 bg-white overflow-hidden shadow-xs">
-          {loading ? (
-            <div className="flex items-center justify-center gap-2 p-10 text-xs text-slate-400">
-              <Loader2 className="h-4 w-4 animate-spin" /> Loading applications...
-            </div>
-          ) : filtered.length === 0 ? (
-            <div className="p-10 text-center text-xs text-slate-400">
-              No applications match this filter yet.
-            </div>
-          ) : (
-            <table className="min-w-full divide-y divide-slate-100 text-xs">
-              <thead className="bg-slate-50 text-slate-500 font-semibold">
-                <tr>
-                  <th className="px-6 py-3.5 text-left">Applicant</th>
-                  <th className="px-6 py-3.5 text-left">University</th>
-                  <th className="px-6 py-3.5 text-left">Program Track</th>
-                  <th className="px-6 py-3.5 text-left">Applied Date</th>
-                  <th className="px-6 py-3.5 text-left">Status</th>
-                  <th className="px-6 py-3.5 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 text-slate-700">
-                {filtered.map((app) => {
-                  const status: ApplicationStatus = app.application_status || 'approved';
-                  return (
-                    <tr key={app.id} className="hover:bg-slate-50/50">
-                      <td className="px-6 py-4">
-                        <div className="font-bold text-slate-900">{app.name}</div>
-                        <div className="text-[11px] text-slate-400">{app.email}</div>
-                      </td>
-                      <td className="px-6 py-4 font-medium text-slate-800">{app.college || '—'}</td>
-                      <td className="px-6 py-4">
-                        <span className="rounded bg-indigo-50 border border-indigo-200 px-2 py-0.5 text-[10px] font-semibold text-indigo-700">
-                          {app.program_interest || app.degree || '—'}
+          <table className="min-w-full divide-y divide-slate-100 text-xs">
+            <thead className="bg-slate-50 text-slate-500 font-semibold">
+              <tr>
+                <th className="px-6 py-3.5 text-left">Student Intern</th>
+                <th className="px-6 py-3.5 text-left">Check-in</th>
+                <th className="px-6 py-3.5 text-left">Check-out</th>
+                <th className="px-6 py-3.5 text-left">Distance From Site</th>
+                <th className="px-6 py-3.5 text-right">Verification Status</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100 text-slate-700">
+              {records.map(r => {
+                const dist = Math.round(distanceMeters(r.inLoc, r.siteLoc));
+                const flagged = dist > FLAG_RADIUS_METERS;
+                return (
+                  <tr key={r.id} className={`hover:bg-slate-50/50 ${flagged ? 'bg-rose-50/40' : ''}`}>
+                    <td className="px-6 py-4 font-bold text-slate-900">{r.student}</td>
+                    <td className="px-6 py-4">
+                      <div className="font-mono font-medium">{r.inTime}</div>
+                      <a href={mapsLink(r.inLoc)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-[11px] text-indigo-600 hover:underline">
+                        <MapPin className="h-3 w-3" /> View pin
+                      </a>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="font-mono font-medium">{r.outTime}</div>
+                      <a href={mapsLink(r.outLoc)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-[11px] text-indigo-600 hover:underline">
+                        <MapPin className="h-3 w-3" /> View pin
+                      </a>
+                    </td>
+                    <td className="px-6 py-4">
+                      {flagged ? (
+                        <span className="inline-flex items-center gap-1 font-semibold text-rose-700">
+                          <ShieldAlert className="h-3.5 w-3.5" /> {dist.toLocaleString()}m — outside geofence
                         </span>
-                      </td>
-                      <td className="px-6 py-4 text-slate-500">
-                        {app.created_at ? new Date(app.created_at).toLocaleDateString() : '—'}
-                      </td>
-                      <td className="px-6 py-4">
-                        <span
-                          className={`rounded-md px-2.5 py-0.5 text-[10px] font-bold border ${
-                            status === 'approved'
-                              ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
-                              : status === 'rejected'
-                              ? 'bg-rose-50 border-rose-200 text-rose-800'
-                              : 'bg-amber-50 border-amber-200 text-amber-800'
-                          }`}
+                      ) : (
+                        <span className="text-slate-500">{dist}m — on site</span>
+                      )}
+                    </td>
+                    <td className="px-6 py-4 text-right">
+                      {r.verified ? (
+                        <span className="rounded-md bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 text-[10px] font-bold text-emerald-800">
+                          Verified Today
+                        </span>
+                      ) : (
+                        <button
+                          onClick={() => verifyStudent(r.id)}
+                          className="rounded-md bg-amber-50 border border-amber-200 px-2.5 py-0.5 text-[10px] font-bold text-amber-800 hover:bg-amber-100 cursor-pointer"
                         >
-                          {STATUS_LABEL[status]}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 text-right">
-                        <div className="flex items-center justify-end gap-1.5">
-                          <button
-                            onClick={() => updateStatus(app, 'approved')}
-                            disabled={updatingId === app.id || status === 'approved'}
-                            className="p-1.5 rounded-lg border border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
-                            title="Approve — unlocks portal login for this volunteer"
-                          >
-                            <Check className="h-4 w-4" />
-                          </button>
-                          <button
-                            onClick={() => updateStatus(app, 'rejected')}
-                            disabled={updatingId === app.id || status === 'rejected'}
-                            className="p-1.5 rounded-lg border border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100 transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
-                            title="Reject application"
-                          >
-                            <X className="h-4 w-4" />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          )}
+                          Confirm Presence
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
         </div>
       </main>
     </div>

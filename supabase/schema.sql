@@ -134,3 +134,89 @@ CREATE TRIGGER on_auth_user_created
 -- SET application_status = 'approved', reviewed_at = NOW()
 -- WHERE email = 'student@example.com';
 -- ==============================================================================
+
+-- ==============================================================================
+-- 7. Attendance table — persists real check-in/check-out records with the
+-- GPS coordinates captured on each action (see lib/geolocation.ts and
+-- lib/attendance.ts). This is what makes the location-capture feature real
+-- instead of living only in component state.
+-- ==============================================================================
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
+
+CREATE TABLE IF NOT EXISTS public.attendance (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  student_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+
+  check_in_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  check_out_at TIMESTAMPTZ,
+
+  in_latitude DOUBLE PRECISION NOT NULL,
+  in_longitude DOUBLE PRECISION NOT NULL,
+  in_accuracy DOUBLE PRECISION,
+
+  out_latitude DOUBLE PRECISION,
+  out_longitude DOUBLE PRECISION,
+  out_accuracy DOUBLE PRECISION,
+
+  -- Set true by an NGO admin on /admin/attendance after cross-checking the
+  -- captured GPS pin against the registered site location.
+  verified BOOLEAN NOT NULL DEFAULT FALSE,
+
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_attendance_student ON public.attendance(student_id);
+CREATE INDEX IF NOT EXISTS idx_attendance_check_in ON public.attendance(check_in_at DESC);
+
+ALTER TABLE public.attendance ENABLE ROW LEVEL SECURITY;
+
+-- Students can see their own attendance history
+DROP POLICY IF EXISTS "Students can view own attendance" ON public.attendance;
+CREATE POLICY "Students can view own attendance"
+  ON public.attendance
+  FOR SELECT
+  USING (auth.uid() = student_id);
+
+-- Admins can see every attendance record (needed for /admin/attendance)
+DROP POLICY IF EXISTS "Admins can view all attendance" ON public.attendance;
+CREATE POLICY "Admins can view all attendance"
+  ON public.attendance
+  FOR SELECT
+  USING (
+    EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin')
+  );
+
+-- A student may only ever check themselves in, and only if they don't
+-- already have an open (not-checked-out) session.
+DROP POLICY IF EXISTS "Students can check in" ON public.attendance;
+CREATE POLICY "Students can check in"
+  ON public.attendance
+  FOR INSERT
+  WITH CHECK (
+    auth.uid() = student_id
+    AND check_out_at IS NULL
+    AND verified = FALSE
+    AND NOT EXISTS (
+      SELECT 1 FROM public.attendance
+      WHERE student_id = auth.uid() AND check_out_at IS NULL
+    )
+  );
+
+-- A student may only update their own still-open session (to check out) —
+-- they cannot touch someone else's row or re-open/edit a closed one.
+DROP POLICY IF EXISTS "Students can check out own attendance" ON public.attendance;
+CREATE POLICY "Students can check out own attendance"
+  ON public.attendance
+  FOR UPDATE
+  USING (auth.uid() = student_id AND check_out_at IS NULL)
+  WITH CHECK (auth.uid() = student_id);
+
+-- Admins can update any row (used to mark a record "verified")
+DROP POLICY IF EXISTS "Admins can update any attendance" ON public.attendance;
+CREATE POLICY "Admins can update any attendance"
+  ON public.attendance
+  FOR UPDATE
+  USING (
+    EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin')
+  );
+-- ==============================================================================
