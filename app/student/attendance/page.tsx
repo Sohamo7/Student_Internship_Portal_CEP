@@ -49,7 +49,7 @@ export default function StudentAttendancePage() {
     setCapturing('in');
     try {
       const loc = await captureLocation();
-      const row = await checkInRecord(user.id, profile?.name || 'Volunteer', user.email, loc);
+      const row = await checkInRecord(user.id, profile?.name || 'Volunteer', user.email, loc, 'student');
       setRecords((prev) => [row, ...prev]);
     } catch (err) {
       setLocationError(err instanceof LocationCaptureError || err instanceof Error ? err.message : 'Could not capture your location.');

@@ -1,7 +1,8 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { Sidebar } from '@/components/sidebar';
 import {
   getWeeklyReportsForAdmin,
@@ -9,7 +10,6 @@ import {
   WeeklyAggregatedReport,
 } from '@/lib/work-log/work-log-service';
 import {
-  ClipboardList,
   CheckCircle2,
   Clock,
   ArrowLeft,
@@ -19,11 +19,19 @@ import {
   ChevronDown,
   ChevronUp,
   Search,
+  GraduationCap,
+  Users,
 } from 'lucide-react';
 
 type FilterTab = 'All' | 'Pending Review' | 'Approved';
 
-export default function AdminWorkLogsPage() {
+function AdminWorkLogsContent() {
+  const searchParams = useSearchParams();
+  const initialRole = searchParams.get('role');
+  const [roleFilter, setRoleFilter] = useState<'all' | 'student' | 'intern'>(
+    initialRole === 'student' ? 'student' : initialRole === 'intern' ? 'intern' : 'all'
+  );
+
   const [reports, setReports] = useState<WeeklyAggregatedReport[]>([]);
   const [filter, setFilter] = useState<FilterTab>('All');
   const [search, setSearch] = useState('');
@@ -43,6 +51,13 @@ export default function AdminWorkLogsPage() {
     setExpandedWeeks(initialExpanded);
   }, []);
 
+  useEffect(() => {
+    const r = searchParams.get('role');
+    if (r === 'student' || r === 'intern') {
+      setRoleFilter(r);
+    }
+  }, [searchParams]);
+
   const toggleExpand = (id: string) => {
     setExpandedWeeks((prev) => ({ ...prev, [id]: !prev[id] }));
   };
@@ -57,14 +72,31 @@ export default function AdminWorkLogsPage() {
     setTimeout(() => setActionSuccess(null), 4000);
   };
 
+  const isStudentReport = (r: WeeklyAggregatedReport) => {
+    const email = r.intern_email.toLowerCase();
+    const name = r.intern_name.toLowerCase();
+    return email.includes('student') || name.includes('rahul') || name.includes('ananya') || name.includes('vikram');
+  };
+
   const filteredReports = reports.filter((r) => {
     const matchesFilter = filter === 'All' ? true : r.status === filter;
+    const isStudent = isStudentReport(r);
+    const matchesRole =
+      roleFilter === 'all'
+        ? true
+        : roleFilter === 'student'
+        ? isStudent
+        : !isStudent;
+
     const matchesSearch =
       r.intern_name.toLowerCase().includes(search.toLowerCase()) ||
       r.intern_email.toLowerCase().includes(search.toLowerCase()) ||
       r.week_label.toLowerCase().includes(search.toLowerCase());
-    return matchesFilter && matchesSearch;
+    return matchesFilter && matchesRole && matchesSearch;
   });
+
+  const studentCount = reports.filter((r) => isStudentReport(r)).length;
+  const internCount = reports.filter((r) => !isStudentReport(r)).length;
 
   const totalWeeklyReports = reports.length;
   const pendingReports = reports.filter((r) => r.status === 'Pending Review').length;
@@ -89,32 +121,34 @@ export default function AdminWorkLogsPage() {
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <h1 className="text-2xl font-black tracking-tight text-slate-900 sm:text-3xl">
-                Weekly Work Log Approvals
+                {roleFilter === 'student'
+                  ? 'Student Weekly Work Logs'
+                  : roleFilter === 'intern'
+                  ? 'Intern Weekly Work Logs'
+                  : 'Weekly Work Log Approvals'}
               </h1>
               <p className="text-sm text-slate-600">
-                Daily entries submitted by interns are automatically accumulated into weekly reports per day for administrative evaluation.
+                {roleFilter === 'student'
+                  ? 'Evaluate submitted daily entries and cumulative weekly hours for student volunteers.'
+                  : roleFilter === 'intern'
+                  ? 'Evaluate submitted daily entries and cumulative weekly hours for active interns.'
+                  : 'Evaluate submitted daily entries and cumulative weekly hours.'}
               </p>
             </div>
 
             <span className="inline-flex items-center gap-1.5 rounded-xl border border-purple-200 bg-purple-50 px-3 py-1.5 text-xs font-bold text-purple-800 shadow-2xs">
               <Layers className="h-4 w-4 text-purple-600" />
-              Accumulated Weekly Reports
+              {filteredReports.length} Weekly Cycles
             </span>
           </div>
         </div>
 
-        {/* Overview Stat Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
-          <div className="rounded-2xl border border-slate-200/90 bg-white p-5 shadow-xs">
-            <span className="text-xs font-semibold uppercase text-slate-500">Weekly Reports</span>
-            <div className="text-2xl font-black text-slate-900 mt-1">{totalWeeklyReports}</div>
-            <span className="text-[11px] text-slate-400">Total week batches</span>
-          </div>
-
+        {/* Metric Cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div className="rounded-2xl border border-amber-200 bg-amber-50/50 p-5 shadow-xs">
-            <span className="text-xs font-semibold uppercase text-amber-700">Pending Review</span>
-            <div className="text-2xl font-black text-amber-700 mt-1">{pendingReports}</div>
-            <span className="text-[11px] text-amber-600 font-medium">Accumulated days awaiting review</span>
+            <span className="text-xs font-semibold uppercase text-amber-700">Pending Approvals</span>
+            <div className="text-2xl font-black text-amber-800 mt-1">{pendingReports}</div>
+            <span className="text-[11px] text-amber-600 font-medium">Awaiting evaluation</span>
           </div>
 
           <div className="rounded-2xl border border-emerald-200 bg-emerald-50/50 p-5 shadow-xs">
@@ -164,7 +198,7 @@ export default function AdminWorkLogsPage() {
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search by intern name, email, or week..."
+              placeholder="Search by name, email, or week..."
               className="w-full rounded-xl border border-slate-200 bg-slate-50 pl-9 pr-3 py-2 text-xs text-slate-900 placeholder:text-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-purple-500/20"
             />
           </div>
@@ -179,6 +213,7 @@ export default function AdminWorkLogsPage() {
           ) : (
             filteredReports.map((report) => {
               const isExpanded = !!expandedWeeks[report.id];
+              const isStudent = isStudentReport(report);
 
               return (
                 <div
@@ -188,53 +223,56 @@ export default function AdminWorkLogsPage() {
                   {/* Summary Bar */}
                   <div className="p-6 flex items-start justify-between flex-wrap gap-4 bg-white">
                     <div className="flex items-start gap-3">
-                      <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-purple-100 text-purple-700 font-bold text-base shrink-0">
+                      <div className={`flex h-11 w-11 items-center justify-center rounded-xl font-bold text-base shrink-0 ${
+                        isStudent ? 'bg-indigo-100 text-indigo-700' : 'bg-teal-100 text-teal-700'
+                      }`}>
                         {report.intern_name.charAt(0)}
                       </div>
                       <div>
                         <div className="flex items-center gap-2">
                           <h3 className="font-bold text-slate-900 text-base">{report.intern_name}</h3>
-                          <span className="rounded-md bg-teal-100 text-teal-800 px-2 py-0.5 text-[10px] font-bold">
-                            Active Intern
+                          <span className={`rounded-md px-2 py-0.5 text-[10px] font-bold border ${
+                            isStudent
+                              ? 'bg-indigo-50 border-indigo-200 text-indigo-700'
+                              : 'bg-teal-50 border-teal-200 text-teal-700'
+                          }`}>
+                            {isStudent ? 'Student' : 'Active Intern'}
                           </span>
                         </div>
-                        <span className="text-xs text-slate-500">{report.intern_email}</span>
-
-                        <div className="mt-2 flex items-center gap-2 text-xs">
-                          <span className="font-semibold text-slate-800">{report.week_label}</span>
-                          <span>•</span>
-                          <span className="rounded bg-indigo-50 border border-indigo-100 px-2 py-0.5 text-xs font-mono font-bold text-indigo-700">
-                            {report.total_hours} hrs accumulated
-                          </span>
-                          <span>•</span>
-                          <span className="text-slate-500">{report.days_logged} daily logs</span>
+                        <div className="text-xs text-slate-500 mt-0.5">{report.intern_email}</div>
+                        <div className="flex items-center gap-1.5 mt-2 text-xs text-slate-600 font-medium">
+                          <Calendar className="h-3.5 w-3.5 text-purple-600" />
+                          <span>{report.week_label}</span>
                         </div>
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-3">
-                      <div>
-                        {report.status === 'Approved' ? (
-                          <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-3.5 py-1 text-xs font-bold text-emerald-800">
-                            <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
-                            Approved
+                    <div className="flex items-center gap-3 flex-wrap">
+                      <div className="text-right">
+                        <div className="flex items-center gap-1.5 justify-end">
+                          <Clock className="h-4 w-4 text-slate-500" />
+                          <span className="font-mono font-bold text-slate-900 text-base">
+                            {report.total_hours} hrs
                           </span>
-                        ) : (
-                          <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-200 bg-amber-50 px-3.5 py-1 text-xs font-bold text-amber-800">
-                            <Clock className="h-3.5 w-3.5 text-amber-600 animate-pulse" />
-                            Pending Review
-                          </span>
-                        )}
+                        </div>
+                        <span className="text-[11px] text-slate-400">
+                          {report.days_logged} {report.days_logged === 1 ? 'day logged' : 'days logged'}
+                        </span>
                       </div>
 
-                      {report.status !== 'Approved' && (
+                      {report.status === 'Approved' ? (
+                        <span className="inline-flex items-center gap-1 rounded-xl bg-emerald-50 border border-emerald-200 px-3 py-1.5 text-xs font-bold text-emerald-800">
+                          <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                          Approved
+                        </span>
+                      ) : (
                         <button
                           type="button"
                           onClick={() => handleApproveWeek(report)}
-                          className="inline-flex items-center gap-1.5 rounded-xl bg-purple-600 px-4 py-2 text-xs font-semibold text-white shadow-sm hover:bg-purple-500 transition-colors cursor-pointer"
+                          className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 px-3.5 py-1.5 text-xs font-bold text-white shadow-xs transition-colors cursor-pointer"
                         >
                           <Check className="h-3.5 w-3.5" />
-                          <span>Approve Week</span>
+                          Approve Week
                         </button>
                       )}
 
@@ -302,5 +340,13 @@ export default function AdminWorkLogsPage() {
         </div>
       </main>
     </div>
+  );
+}
+
+export default function AdminWorkLogsPage() {
+  return (
+    <Suspense fallback={<div className="p-8 text-center text-xs text-slate-400">Loading work logs...</div>}>
+      <AdminWorkLogsContent />
+    </Suspense>
   );
 }

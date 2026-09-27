@@ -6,6 +6,7 @@ export interface AttendanceRow {
   student_id: string;
   student_name?: string;
   student_email?: string;
+  role?: 'student' | 'intern';
   check_in_at: string;
   check_out_at: string | null;
   in_latitude: number;
@@ -19,11 +20,108 @@ export interface AttendanceRow {
 
 const LOCAL_KEY = 'cep_attendance_records';
 
+const INITIAL_DEMO_RECORDS: AttendanceRow[] = [
+  {
+    id: 'att-1',
+    student_id: 'demo-student-uuid-001',
+    student_name: 'Rahul Sharma',
+    student_email: 'student@ngo.org',
+    role: 'student',
+    check_in_at: new Date(Date.now() - 1000 * 60 * 60 * 4).toISOString(),
+    check_out_at: new Date(Date.now() - 1000 * 60 * 60 * 1).toISOString(),
+    in_latitude: 28.6141,
+    in_longitude: 77.2092,
+    in_accuracy: 12,
+    out_latitude: 28.6140,
+    out_longitude: 77.2091,
+    out_accuracy: 10,
+    verified: true,
+  },
+  {
+    id: 'att-2',
+    student_id: 'demo-intern-uuid-001',
+    student_name: 'Aarav Patel',
+    student_email: 'intern@ngo.org',
+    role: 'intern',
+    check_in_at: new Date(Date.now() - 1000 * 60 * 60 * 5).toISOString(),
+    check_out_at: new Date(Date.now() - 1000 * 60 * 60 * 1.5).toISOString(),
+    in_latitude: 28.6138,
+    in_longitude: 77.2089,
+    in_accuracy: 15,
+    out_latitude: 28.6139,
+    out_longitude: 77.2090,
+    out_accuracy: 14,
+    verified: true,
+  },
+  {
+    id: 'att-3',
+    student_id: 'demo-student-2',
+    student_name: 'Ananya Verma',
+    student_email: 'ananya@bits.edu',
+    role: 'student',
+    check_in_at: new Date(Date.now() - 1000 * 60 * 60 * 6).toISOString(),
+    check_out_at: new Date(Date.now() - 1000 * 60 * 60 * 2).toISOString(),
+    in_latitude: 28.6139,
+    in_longitude: 77.2093,
+    in_accuracy: 8,
+    out_latitude: 28.6139,
+    out_longitude: 77.2093,
+    out_accuracy: 9,
+    verified: true,
+  },
+  {
+    id: 'att-4',
+    student_id: 'demo-intern-3',
+    student_name: 'Sneha Kulkarni',
+    student_email: 'sneha@coep.ac.in',
+    role: 'intern',
+    check_in_at: new Date(Date.now() - 1000 * 60 * 60 * 7).toISOString(),
+    check_out_at: new Date(Date.now() - 1000 * 60 * 60 * 3).toISOString(),
+    in_latitude: 28.6144,
+    in_longitude: 77.2094,
+    in_accuracy: 18,
+    out_latitude: 28.6143,
+    out_longitude: 77.2095,
+    out_accuracy: 16,
+    verified: true,
+  },
+  {
+    id: 'att-5',
+    student_id: 'demo-student-4',
+    student_name: 'Vikram Choudhury',
+    student_email: 'vikram@iitd.ac.in',
+    role: 'student',
+    check_in_at: new Date(Date.now() - 1000 * 60 * 60 * 8).toISOString(),
+    check_out_at: new Date(Date.now() - 1000 * 60 * 60 * 4.5).toISOString(),
+    in_latitude: 28.6250,
+    in_longitude: 77.2180,
+    in_accuracy: 25,
+    out_latitude: 28.6252,
+    out_longitude: 77.2182,
+    out_accuracy: 20,
+    verified: false,
+  },
+];
+
 function readLocal(): AttendanceRow[] {
   try {
-    return JSON.parse(localStorage.getItem(LOCAL_KEY) || '[]');
+    const raw = localStorage.getItem(LOCAL_KEY);
+    if (!raw) {
+      localStorage.setItem(LOCAL_KEY, JSON.stringify(INITIAL_DEMO_RECORDS));
+      return INITIAL_DEMO_RECORDS;
+    }
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed) || parsed.length === 0) {
+      localStorage.setItem(LOCAL_KEY, JSON.stringify(INITIAL_DEMO_RECORDS));
+      return INITIAL_DEMO_RECORDS;
+    }
+    // Ensure all items have a role inferred if missing
+    return parsed.map((r: AttendanceRow) => ({
+      ...r,
+      role: r.role || (r.student_email?.includes('intern') || r.student_name?.includes('Sneha') || r.student_name?.includes('Aarav') ? 'intern' : 'student'),
+    }));
   } catch {
-    return [];
+    return INITIAL_DEMO_RECORDS;
   }
 }
 
@@ -82,7 +180,8 @@ export async function checkIn(
   userId: string,
   name: string,
   email: string,
-  loc: CapturedLocation
+  loc: CapturedLocation,
+  role?: 'student' | 'intern'
 ): Promise<AttendanceRow> {
   if (isSupabaseConfigured()) {
     const supabase = createClient();
@@ -98,7 +197,7 @@ export async function checkIn(
       .select()
       .single();
     if (error) throw new Error(error.message);
-    return data as AttendanceRow;
+    return { ...(data as AttendanceRow), role };
   }
 
   const row: AttendanceRow = {
@@ -106,6 +205,7 @@ export async function checkIn(
     student_id: userId,
     student_name: name,
     student_email: email,
+    role: role || (email.includes('intern') ? 'intern' : 'student'),
     check_in_at: new Date().toISOString(),
     check_out_at: null,
     in_latitude: loc.latitude,
