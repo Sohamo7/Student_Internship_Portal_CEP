@@ -24,7 +24,6 @@ export function escapeHtml(value: string): string {
 function cleanSubject(value: string): string {
   return value.replace(/[\r\n]+/g, ' ').trim().slice(0, 200);
 }
-
 interface SendResult {
   sent: boolean;
   error?: string;

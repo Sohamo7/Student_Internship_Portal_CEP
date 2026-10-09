@@ -97,7 +97,6 @@ function AcceptInviteContent() {
         setPhase('invalid');
         return;
       }
-
       // Don't leave tokens sitting in the address bar.
       window.history.replaceState(null, '', window.location.pathname);
       setEmail(session.user.email || '');

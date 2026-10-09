@@ -160,7 +160,6 @@ function AdminApplicationsContent() {
             {actionError}
           </div>
         )}
-
         {/* Filters and Search Bar */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-4 rounded-2xl border border-slate-200/90 shadow-xs">
           <div className="relative flex-1 max-w-md">

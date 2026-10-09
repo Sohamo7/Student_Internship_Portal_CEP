@@ -68,7 +68,6 @@ AS $$
     SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin'
   );
 $$;
-
 -- 2. Enable Row Level Security (RLS)
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 

@@ -178,6 +178,7 @@ re-sent by inviting the same email again.
 
 > 📘 **Full click-by-click walkthrough: [`DEPLOYMENT.md`](DEPLOYMENT.md).** The summary below is a quick reference.
 
+
 Follow these in order. Steps 1–3 are one-time manual setup; no `vercel.json` is needed (Vercel auto-detects
 Next.js and uses `npm run build`).
 
