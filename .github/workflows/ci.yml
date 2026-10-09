@@ -1,0 +1,26 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      # npm ci fails if package.json and package-lock.json are out of sync,
+      # which is exactly the kind of mistake this job should catch.
+      - run: npm ci
+      - run: npx tsc --noEmit
+      - run: npm run lint
+      - run: npm test
+      # The build runs in demo mode (no Supabase variables) — it only proves the
+      # app compiles and every page renders. Real deployments are built by Vercel.
+      - run: npm run build
