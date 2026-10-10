@@ -179,11 +179,6 @@ function AcceptInviteContent() {
 
         {phase === 'ready' && (
           <form onSubmit={handleSubmit} className="space-y-5">
-            {!configured && (
-              <p className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-[11px] font-semibold text-amber-800">
-                Demo mode: this account is created in this browser only.
-              </p>
-            )}
             {error && (
               <div className="flex items-start gap-3 rounded-xl border border-rose-200 bg-rose-50/90 p-4 text-xs text-rose-800">
                 <AlertCircle className="h-4 w-4 shrink-0 text-rose-600" />

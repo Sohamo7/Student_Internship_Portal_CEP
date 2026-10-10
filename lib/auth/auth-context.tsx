@@ -9,6 +9,7 @@ import { getApplicationGateError } from '@/lib/auth/login-gate';
 
 // Extra fields collected on the "New Volunteer" application form (login page apply tab)
 export interface ApplicationDetails {
+  role?: 'student' | 'intern';
   phone?: string;
   college?: string;
   degree?: string;
@@ -292,12 +293,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const normalizedEmail = email.trim().toLowerCase();
       if (isConfigured) {
         const supabase = createClient();
+        const selectedRole = application?.role || 'student';
         const { data, error } = await supabase.auth.signUp({
           email: normalizedEmail,
           password,
           options: {
             data: {
               name: name.trim(),
+              role: selectedRole,
               phone: application?.phone?.trim() || null,
               college: application?.college?.trim() || null,
               degree: application?.degree?.trim() || null,
@@ -332,12 +335,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           return { success: false, error: 'An account with this email already exists.' };
         }
 
-        const newId = `student-${Date.now()}`;
+        const selectedRole = application?.role || 'student';
+        const newId = `${selectedRole}-${Date.now()}`;
         const newProfile: UserProfile = {
           id: newId,
           name: name.trim(),
           email: normalizedEmail,
-          role: 'student',
+          role: selectedRole,
           created_at: new Date().toISOString(),
           phone: application?.phone?.trim(),
           college: application?.college?.trim(),

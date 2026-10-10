@@ -6,7 +6,7 @@ import { useAuth } from '@/lib/auth/auth-context';
 import { notifyApplicationSubmitted } from '@/lib/email/client';
 import { useOrgSettings } from '@/lib/settings/use-org-settings';
 import { getIntakeStatus } from '@/lib/settings/settings-service';
-import { isSupabaseConfigured } from '@/lib/supabase/client';
+
 import {
   RESUME_ACCEPT,
   UploadedResume,
@@ -20,7 +20,6 @@ import {
   Mail,
   ArrowRight,
   AlertCircle,
-  Shield,
   GraduationCap,
   Briefcase,
   User,
@@ -82,19 +81,7 @@ function SignInForm() {
     }
   };
 
-  const handleFillDemo = (type: 'student' | 'admin' | 'intern') => {
-    setError(null);
-    if (type === 'student') {
-      setEmail('student@ngo.org');
-      setPassword('password123');
-    } else if (type === 'intern') {
-      setEmail('intern@ngo.org');
-      setPassword('password123');
-    } else {
-      setEmail('admin@ngo.org');
-      setPassword('password123');
-    }
-  };
+
 
   return (
     <div className="space-y-6">
@@ -160,38 +147,7 @@ function SignInForm() {
         </button>
       </form>
 
-      {/* Quick Demo Fillers */}
-      <div className="pt-2">
-        <p className="text-center text-[11px] font-medium text-slate-500 mb-3">
-          ⚡ Quick 1-Click Verification Fillers:
-        </p>
-        <div className="grid grid-cols-3 gap-2">
-          <button
-            type="button"
-            onClick={() => handleFillDemo('student')}
-            className="flex items-center justify-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-2 text-xs font-medium text-slate-700 hover:bg-indigo-50 hover:text-indigo-600 hover:border-indigo-200 transition-colors cursor-pointer"
-          >
-            <GraduationCap className="h-3.5 w-3.5 text-indigo-500 shrink-0" />
-            <span className="truncate">Demo Student</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => handleFillDemo('intern')}
-            className="flex items-center justify-center gap-1.5 rounded-lg border border-teal-200 bg-teal-50/60 px-2.5 py-2 text-xs font-medium text-teal-800 hover:bg-teal-100 hover:border-teal-300 transition-colors cursor-pointer"
-          >
-            <Briefcase className="h-3.5 w-3.5 text-teal-600 shrink-0" />
-            <span className="truncate">Demo Intern</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => handleFillDemo('admin')}
-            className="flex items-center justify-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-2 text-xs font-medium text-slate-700 hover:bg-purple-50 hover:text-purple-600 hover:border-purple-200 transition-colors cursor-pointer"
-          >
-            <Shield className="h-3.5 w-3.5 text-purple-500 shrink-0" />
-            <span className="truncate">Demo Admin</span>
-          </button>
-        </div>
-      </div>
+
     </div>
   );
 }
@@ -201,6 +157,7 @@ function ApplyForm({ onSubmitted }: { onSubmitted: () => void }) {
   const { settings: orgSettings } = useOrgSettings();
   const intakeOpen = getIntakeStatus(orgSettings.intake).open;
 
+  const [role, setRole] = useState<'student' | 'intern'>('student');
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
@@ -275,6 +232,7 @@ function ApplyForm({ onSubmitted }: { onSubmitted: () => void }) {
     }
 
     const result = await register(name, email, password, {
+      role,
       phone,
       college,
       degree,
@@ -364,6 +322,59 @@ function ApplyForm({ onSubmitted }: { onSubmitted: () => void }) {
       )}
 
       <form onSubmit={handleSubmit} className="space-y-4">
+        {/* Role Track Selection */}
+        <div className="space-y-1.5">
+          <label className="block text-xs font-semibold text-slate-700">Apply As / Program Track</label>
+          <div className="grid grid-cols-2 gap-3">
+            <button
+              type="button"
+              onClick={() => setRole('student')}
+              className={`flex items-center gap-2.5 rounded-xl border p-3 text-left transition-all cursor-pointer ${
+                role === 'student'
+                  ? 'border-indigo-600 bg-indigo-50/80 ring-2 ring-indigo-500/20'
+                  : 'border-slate-200 bg-slate-50/50 hover:border-slate-300'
+              }`}
+            >
+              <div
+                className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${
+                  role === 'student' ? 'bg-indigo-600 text-white' : 'bg-slate-200 text-slate-600'
+                }`}
+              >
+                <GraduationCap className="h-4 w-4" />
+              </div>
+              <div>
+                <div className={`text-xs font-bold ${role === 'student' ? 'text-indigo-950' : 'text-slate-800'}`}>
+                  Student Track
+                </div>
+                <div className="text-[10px] text-slate-500 leading-tight">Academic &amp; CEP Credits</div>
+              </div>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setRole('intern')}
+              className={`flex items-center gap-2.5 rounded-xl border p-3 text-left transition-all cursor-pointer ${
+                role === 'intern'
+                  ? 'border-teal-600 bg-teal-50/80 ring-2 ring-teal-500/20'
+                  : 'border-slate-200 bg-slate-50/50 hover:border-slate-300'
+              }`}
+            >
+              <div
+                className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${
+                  role === 'intern' ? 'bg-teal-600 text-white' : 'bg-slate-200 text-slate-600'
+                }`}
+              >
+                <Briefcase className="h-4 w-4" />
+              </div>
+              <div>
+                <div className={`text-xs font-bold ${role === 'intern' ? 'text-teal-950' : 'text-slate-800'}`}>
+                  Intern Track
+                </div>
+                <div className="text-[10px] text-slate-500 leading-tight">Advanced + Leave/Issue Modules</div>
+              </div>
+            </button>
+          </div>
+        </div>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div>
             <label className="block text-xs font-semibold text-slate-700">Full Name</label>
@@ -528,13 +539,8 @@ function ApplyForm({ onSubmitted }: { onSubmitted: () => void }) {
             </label>
           )}
           <p className="mt-1 text-[11px] text-slate-400">
-            PDF, DOC or DOCX{isSupabaseConfigured() ? ', up to 5 MB.' : ', up to 1 MB.'}
+            PDF, DOC or DOCX, up to 5 MB.
           </p>
-          {!isSupabaseConfigured() && (
-            <p className="mt-1 text-[11px] font-semibold text-amber-700">
-              Demo mode: Supabase isn&apos;t configured, so the file is kept in this browser only and is not uploaded.
-            </p>
-          )}
         </div>
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 pt-1">

@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { Download, Eye, Loader2, FileText } from 'lucide-react';
-import { getResumeUrl, isLocalResumePath } from '@/lib/resumes/resume-service';
+import { getResumeUrl } from '@/lib/resumes/resume-service';
 
 /**
  * View / Download buttons for an applicant's résumé (admin review screen).
@@ -19,8 +19,6 @@ export function ResumeActions({
   const [error, setError] = useState<string | null>(null);
 
   if (!path) return <span className="text-slate-400">None</span>;
-
-  const local = isLocalResumePath(path);
 
   const open = async (mode: 'view' | 'download') => {
     setBusy(mode);
@@ -63,9 +61,6 @@ export function ResumeActions({
           {busy === 'download' ? <Loader2 className="h-3 w-3 animate-spin" /> : <Download className="h-3 w-3" />} Download
         </button>
       </div>
-      {local && (
-        <p className="text-[10px] font-semibold text-amber-700">Demo file — stored in this browser only</p>
-      )}
       {error && <p className="text-[10px] font-medium text-rose-600">{error}</p>}
     </div>
   );

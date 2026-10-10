@@ -168,7 +168,9 @@ BEGIN
     NEW.id,
     COALESCE(NEW.raw_user_meta_data->>'name', split_part(NEW.email, '@', 1)),
     NEW.email,
-    'student', -- Public registration (the "Apply" form) is strictly student role
+    CASE WHEN NEW.raw_user_meta_data->>'role' IN ('student', 'intern')
+         THEN NEW.raw_user_meta_data->>'role'
+         ELSE 'student' END,
     NEW.raw_user_meta_data->>'phone',
     NEW.raw_user_meta_data->>'college',
     NEW.raw_user_meta_data->>'degree',

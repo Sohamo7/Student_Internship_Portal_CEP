@@ -3,7 +3,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { Sidebar } from '@/components/sidebar';
-import { isSupabaseConfigured } from '@/lib/supabase/client';
+
 import {
   IntakeWindow,
   OrgSettings,
@@ -107,7 +107,6 @@ export default function AdminSettingsPage() {
   const [saveError, setSaveError] = useState<string | null>(null);
   const [justSaved, setJustSaved] = useState(false);
   const [showErrors, setShowErrors] = useState(false);
-  const configured = isSupabaseConfigured();
 
   useEffect(() => {
     let cancelled = false;
@@ -210,11 +209,6 @@ export default function AdminSettingsPage() {
           <p className="text-sm text-slate-600">
             Organization profile, the application intake window, and supervisor contacts.
           </p>
-          {!configured && (
-            <p className="mt-2 text-[11px] text-slate-400">
-              Demo mode: settings are saved in this browser&apos;s local storage.
-            </p>
-          )}
         </div>
 
         {warning && (

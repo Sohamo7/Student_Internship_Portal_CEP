@@ -4,7 +4,7 @@ import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Sidebar } from '@/components/sidebar';
 import { useAuth } from '@/lib/auth/auth-context';
-import { isSupabaseConfigured } from '@/lib/supabase/client';
+
 import {
   AdminMember,
   fetchAdmins,
@@ -29,7 +29,6 @@ const INPUT =
 
 export default function AdminTeamPage() {
   const { profile } = useAuth();
-  const configured = isSupabaseConfigured();
 
   const [admins, setAdmins] = useState<AdminMember[]>([]);
   const [loading, setLoading] = useState(true);
@@ -72,9 +71,7 @@ export default function AdminTeamPage() {
       setNotice({ text: `Invite emailed to ${email.trim().toLowerCase()}. They’ll set their own password from the link.` });
     } else {
       setNotice({
-        text: configured
-          ? 'The invite was created, but the email could not be sent (is RESEND_API_KEY set?). Send this one-time link to them yourself:'
-          : 'Demo mode: no email is sent. Open or copy this link to complete the invite:',
+        text: 'The invite was created, but the email could not be sent (is RESEND_API_KEY set?). Send this one-time link to them yourself:',
         link: result.inviteLink,
       });
     }
@@ -121,11 +118,6 @@ export default function AdminTeamPage() {
             Invite colleagues to manage the portal. They get an email link to set their own password — no database
             access needed.
           </p>
-          {!configured && (
-            <p className="mt-2 text-[11px] font-semibold text-amber-700">
-              Demo mode: invites are kept in this browser and no email is sent.
-            </p>
-          )}
         </div>
 
         {/* Invite form */}

@@ -4,7 +4,7 @@ import React, { useEffect, useState, Suspense } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { Sidebar } from '@/components/sidebar';
-import { isSupabaseConfigured } from '@/lib/supabase/client';
+
 import {
   countByStatus,
   effectiveStatus,
@@ -46,7 +46,6 @@ function AdminApplicationsContent() {
   const [actionError, setActionError] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<FilterOption>('All');
   const [searchTerm, setSearchTerm] = useState('');
-  const configured = isSupabaseConfigured();
 
   const loadApplications = async () => {
     setLoading(true);
@@ -148,11 +147,6 @@ function AdminApplicationsContent() {
               </span>
             </div>
           </div>
-          {!configured && (
-            <p className="mt-2 text-[11px] text-slate-400">
-              Demo mode: reading applications submitted via the Apply tab from local storage.
-            </p>
-          )}
         </div>
 
         {actionError && (
