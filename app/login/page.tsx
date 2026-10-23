@@ -15,6 +15,7 @@ import {
   uploadResume,
   validateResume,
 } from '@/lib/resumes/resume-service';
+import { createClient, isSupabaseConfigured } from '@/lib/supabase/client';
 import {
   Lock,
   Mail,
@@ -30,9 +31,11 @@ import {
   Clock,
   Paperclip,
   X,
+  ShieldCheck,
+  Loader2,
 } from 'lucide-react';
 
-type Tab = 'signin' | 'apply';
+type Tab = 'signin' | 'apply' | 'setup_password';
 
 const PROGRAM_INTERESTS = [
   'Community Digital Literacy & Youth Education',
@@ -41,7 +44,7 @@ const PROGRAM_INTERESTS = [
   'Women Empowerment & Vocational Training',
 ];
 
-function SignInForm() {
+function SignInForm({ onSetupPassword }: { onSetupPassword: () => void }) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const redirectPath = searchParams.get('redirect');
@@ -80,8 +83,6 @@ function SignInForm() {
       router.push('/student/dashboard');
     }
   };
-
-
 
   return (
     <div className="space-y-6">
@@ -147,7 +148,15 @@ function SignInForm() {
         </button>
       </form>
 
-
+      <div className="pt-2 text-center border-t border-slate-100">
+        <button
+          type="button"
+          onClick={onSetupPassword}
+          className="text-xs text-slate-500 hover:text-indigo-600 transition-colors cursor-pointer"
+        >
+          Received an admin invite link? <span className="font-semibold text-indigo-600 underline">Set up password</span>
+        </button>
+      </div>
     </div>
   );
 }
@@ -598,15 +607,380 @@ function ApplyForm({ onSubmitted }: { onSubmitted: () => void }) {
   );
 }
 
+type SetupPhase = 'checking' | 'ready' | 'success' | 'need_link' | 'already_active' | 'invalid';
+
+function SetupPasswordForm({ onSwitchToSignIn }: { onSwitchToSignIn: () => void }) {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const configured = isSupabaseConfigured();
+
+  const [phase, setPhase] = useState<SetupPhase>('checking');
+  const [problem, setProblem] = useState<string | null>(null);
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function checkInvite() {
+      if (!configured) {
+        if (cancelled) return;
+        setProblem('Supabase authentication is not configured. Admin invitations cannot be verified.');
+        setPhase('invalid');
+        return;
+      }
+
+      const supabase = createClient();
+      const hashStr = typeof window !== 'undefined' ? window.location.hash.replace(/^#/, '') : '';
+      const hash = new URLSearchParams(hashStr);
+      const hashError = hash.get('error_description');
+
+      if (hashError) {
+        if (cancelled) return;
+        setProblem(`${hashError.replace(/\+/g, ' ')}. Please request a fresh invitation from an existing admin.`);
+        setPhase('invalid');
+        return;
+      }
+
+      let { data: { session } } = await supabase.auth.getSession();
+
+      if (!session) {
+        const accessToken = hash.get('access_token');
+        const refreshToken = hash.get('refresh_token');
+        const code = searchParams.get('code');
+        const tokenHash = searchParams.get('token_hash');
+
+        try {
+          if (accessToken && refreshToken) {
+            await supabase.auth.setSession({ access_token: accessToken, refresh_token: refreshToken });
+          } else if (code) {
+            await supabase.auth.exchangeCodeForSession(code);
+          } else if (tokenHash) {
+            await supabase.auth.verifyOtp({ type: 'invite', token_hash: tokenHash });
+          }
+        } catch (err) {
+          console.error('Error exchanging invite tokens:', err);
+        }
+        ({ data: { session } } = await supabase.auth.getSession());
+      }
+
+      if (cancelled) return;
+
+      if (!session?.user) {
+        setPhase('need_link');
+        return;
+      }
+
+      const { data: invited, error: fetchErr } = await supabase
+        .from('profiles')
+        .select('name, email, role, invited_at, invite_accepted_at')
+        .eq('id', session.user.id)
+        .maybeSingle();
+
+      if (cancelled) return;
+
+      if (fetchErr || !invited) {
+        setProblem('Could not locate an admin account corresponding to this session. Please ask for a new invite.');
+        setPhase('invalid');
+        return;
+      }
+
+      if (invited.role !== 'admin' || !invited.invited_at) {
+        setProblem('This account was not invited as an admin. If you are a student or intern, please sign in.');
+        setPhase('invalid');
+        return;
+      }
+
+      if (invited.invite_accepted_at) {
+        setEmail(invited.email || session.user.email || '');
+        setPhase('already_active');
+        return;
+      }
+
+      setName(invited.name || '');
+      setEmail(invited.email || session.user.email || '');
+      setPhase('ready');
+    }
+
+    checkInvite();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [configured, searchParams]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+
+    if (password.length < 8) {
+      setError('Password must be at least 8 characters long.');
+      return;
+    }
+    if (password !== confirmPassword) {
+      setError('Passwords do not match.');
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const supabase = createClient();
+      const { data: userData, error: pwErr } = await supabase.auth.updateUser({
+        password,
+        data: { name: name.trim() },
+      });
+      if (pwErr) throw new Error(pwErr.message);
+
+      const userId = userData.user?.id;
+      if (userId) {
+        const { error: profileErr } = await supabase
+          .from('profiles')
+          .update({
+            name: name.trim(),
+            invite_accepted_at: new Date().toISOString(),
+          })
+          .eq('id', userId);
+        if (profileErr) throw new Error(profileErr.message);
+      }
+
+      setPhase('success');
+      setTimeout(() => {
+        router.push('/admin/dashboard');
+      }, 1200);
+    } catch (err) {
+      setSaving(false);
+      setError(err instanceof Error ? err.message : 'Could not set up password. Please try again.');
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      {phase === 'checking' && (
+        <div className="flex flex-col items-center justify-center py-8 text-center text-xs text-slate-500">
+          <Loader2 className="h-6 w-6 animate-spin text-purple-600 mb-2" />
+          <span>Verifying your admin invitation...</span>
+        </div>
+      )}
+
+      {phase === 'need_link' && (
+        <div className="space-y-5 text-center py-2">
+          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-purple-50 text-purple-600">
+            <ShieldCheck className="h-6 w-6" />
+          </div>
+          <div>
+            <h3 className="text-base font-bold text-slate-900">Admin Invitation Verification</h3>
+            <p className="mt-2 text-xs text-slate-600 leading-relaxed">
+              To set up your admin password, please click the one-time link sent to your email by the NGO admin team.
+            </p>
+            <p className="mt-2 text-[11px] text-slate-400">
+              If you received the invitation link directly, copy and paste it into your browser address bar.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={onSwitchToSignIn}
+            className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
+          >
+            Back to Sign In
+          </button>
+        </div>
+      )}
+
+      {phase === 'already_active' && (
+        <div className="space-y-5 text-center py-2">
+          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-600">
+            <CheckCircle2 className="h-6 w-6" />
+          </div>
+          <div>
+            <h3 className="text-base font-bold text-slate-900">Account Already Active</h3>
+            <p className="mt-2 text-xs text-slate-600 leading-relaxed">
+              The admin account for <strong>{email}</strong> has already accepted the invite and configured a password.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={onSwitchToSignIn}
+            className="inline-flex items-center gap-1.5 rounded-xl bg-indigo-600 px-4 py-2.5 text-xs font-semibold text-white hover:bg-indigo-500 transition-colors cursor-pointer"
+          >
+            <span>Sign In Now</span>
+            <ArrowRight className="h-4 w-4" />
+          </button>
+        </div>
+      )}
+
+      {phase === 'invalid' && (
+        <div className="space-y-4 text-center">
+          <div className="flex items-start gap-3 rounded-xl border border-rose-200 bg-rose-50/90 p-4 text-left text-xs text-rose-800">
+            <AlertCircle className="h-4 w-4 shrink-0 text-rose-600 mt-0.5" />
+            <span>{problem}</span>
+          </div>
+          <button
+            type="button"
+            onClick={onSwitchToSignIn}
+            className="text-xs font-semibold text-indigo-600 hover:text-indigo-500 cursor-pointer"
+          >
+            Back to Sign In
+          </button>
+        </div>
+      )}
+
+      {phase === 'success' && (
+        <div className="space-y-5 text-center py-4">
+          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-600">
+            <CheckCircle2 className="h-7 w-7" />
+          </div>
+          <div>
+            <h3 className="text-lg font-bold text-slate-900">Password Set Successfully!</h3>
+            <p className="mt-2 text-xs text-slate-600 leading-relaxed">
+              Your NGO admin account is now active. Redirecting you to the admin dashboard...
+            </p>
+          </div>
+          <div className="flex justify-center">
+            <div className="h-5 w-5 animate-spin rounded-full border-2 border-indigo-600 border-t-transparent" />
+          </div>
+        </div>
+      )}
+
+      {phase === 'ready' && (
+        <form onSubmit={handleSubmit} className="space-y-5">
+          <div className="flex items-start gap-2.5 rounded-xl border border-purple-200 bg-purple-50/80 p-3.5 text-xs text-purple-900">
+            <ShieldCheck className="h-4 w-4 shrink-0 text-purple-600 mt-0.5" />
+            <span>
+              You&apos;ve been invited to join as an NGO Administrator. Choose a secure password to activate your portal access.
+            </span>
+          </div>
+
+          {error && (
+            <div className="flex items-start gap-3 rounded-xl border border-rose-200 bg-rose-50/90 p-4 text-xs text-rose-800">
+              <AlertCircle className="h-4 w-4 shrink-0 text-rose-600" />
+              <span>{error}</span>
+            </div>
+          )}
+
+          <div>
+            <label className="block text-xs font-semibold text-slate-700">Email Address</label>
+            <div className="relative mt-1.5">
+              <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
+                <Mail className="h-4 w-4" />
+              </div>
+              <input
+                type="email"
+                readOnly
+                value={email}
+                className="block w-full rounded-xl border border-slate-200 bg-slate-100 pl-10 pr-3 py-2.5 text-sm text-slate-600 cursor-not-allowed"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-slate-700">Full Name</label>
+            <div className="relative mt-1.5">
+              <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
+                <User className="h-4 w-4" />
+              </div>
+              <input
+                type="text"
+                required
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="Admin Name"
+                className="block w-full rounded-xl border border-slate-200 bg-slate-50/50 pl-10 pr-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:border-purple-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-purple-500/20"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-slate-700">Create Password</label>
+            <div className="relative mt-1.5">
+              <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
+                <Lock className="h-4 w-4" />
+              </div>
+              <input
+                type="password"
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="At least 8 characters"
+                className="block w-full rounded-xl border border-slate-200 bg-slate-50/50 pl-10 pr-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:border-purple-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-purple-500/20"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-slate-700">Confirm Password</label>
+            <div className="relative mt-1.5">
+              <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
+                <Lock className="h-4 w-4" />
+              </div>
+              <input
+                type="password"
+                required
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                placeholder="Repeat password"
+                className="block w-full rounded-xl border border-slate-200 bg-slate-50/50 pl-10 pr-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:border-purple-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-purple-500/20"
+              />
+            </div>
+          </div>
+
+          <button
+            type="submit"
+            disabled={saving}
+            className="flex w-full items-center justify-center gap-2 rounded-xl bg-purple-600 px-4 py-3 text-sm font-semibold text-white shadow-sm shadow-purple-600/20 hover:bg-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-500/20 disabled:opacity-50 transition-all cursor-pointer"
+          >
+            {saving ? (
+              <Loader2 className="h-5 w-5 animate-spin" />
+            ) : (
+              <>
+                <span>Activate Account &amp; Set Password</span>
+                <ArrowRight className="h-4 w-4" />
+              </>
+            )}
+          </button>
+        </form>
+      )}
+    </div>
+  );
+}
+
 function LoginTabs() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { user, profile, role, isLoading } = useAuth();
-  const initialTab: Tab = searchParams.get('tab') === 'apply' ? 'apply' : 'signin';
+
+  const isSetupPasswordRequested =
+    searchParams.get('setup_password') === 'true' ||
+    searchParams.get('tab') === 'setup-password' ||
+    searchParams.get('tab') === 'setup_password' ||
+    Boolean(searchParams.get('token_hash')) ||
+    Boolean(searchParams.get('code'));
+
+  const initialTab: Tab = isSetupPasswordRequested
+    ? 'setup_password'
+    : searchParams.get('tab') === 'apply'
+    ? 'apply'
+    : 'signin';
+
   const [tab, setTab] = useState<Tab>(initialTab);
 
   useEffect(() => {
+    const hash = typeof window !== 'undefined' ? window.location.hash : '';
+    if (hash.includes('access_token') || hash.includes('type=invite') || isSetupPasswordRequested) {
+      setTab('setup_password');
+    }
+  }, [isSetupPasswordRequested]);
+
+  useEffect(() => {
     if (!isLoading && user && profile) {
+      // If invited admin who hasn't accepted invite yet, ensure they are on setup_password tab
+      if (profile.role === 'admin' && profile.invited_at && !profile.invite_accepted_at) {
+        setTab('setup_password');
+        return;
+      }
       if (role === 'admin') {
         router.push('/admin/dashboard');
       } else if (role === 'intern') {
@@ -621,21 +995,37 @@ function LoginTabs() {
     <div className="w-full max-w-md space-y-8">
       {/* Header */}
       <div className="text-center">
-        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-tr from-indigo-600 to-violet-600 text-white shadow-md shadow-indigo-600/20">
-          <Lock className="h-6 w-6" />
+        <div
+          className={`mx-auto flex h-12 w-12 items-center justify-center rounded-2xl text-white shadow-md transition-all ${
+            tab === 'setup_password'
+              ? 'bg-gradient-to-tr from-purple-600 to-indigo-600 shadow-purple-600/20'
+              : 'bg-gradient-to-tr from-indigo-600 to-violet-600 shadow-indigo-600/20'
+          }`}
+        >
+          {tab === 'setup_password' ? <ShieldCheck className="h-6 w-6" /> : <Lock className="h-6 w-6" />}
         </div>
         <h2 className="mt-5 text-3xl font-extrabold tracking-tight text-slate-900">
-          {tab === 'signin' ? 'Sign in to your account' : 'Apply for an Internship'}
+          {tab === 'signin'
+            ? 'Sign in to your account'
+            : tab === 'apply'
+            ? 'Apply for an Internship'
+            : 'Set Up Admin Password'}
         </h2>
         <p className="mt-2 text-sm text-slate-600">
           {tab === 'signin'
             ? 'Access your personalized student or NGO administration dashboard'
-            : 'New volunteer? Submit your details — an NGO admin will review and approve your access.'}
+            : tab === 'apply'
+            ? 'New volunteer? Submit your details — an NGO admin will review and approve your access.'
+            : 'Choose a password to activate your NGO administrator account.'}
         </p>
       </div>
 
       {/* Tab Switcher */}
-      <div className="grid grid-cols-2 gap-1.5 rounded-xl border border-slate-200 bg-slate-100 p-1">
+      <div
+        className={`grid ${
+          tab === 'setup_password' ? 'grid-cols-3' : 'grid-cols-2'
+        } gap-1.5 rounded-xl border border-slate-200 bg-slate-100 p-1`}
+      >
         <button
           type="button"
           onClick={() => setTab('signin')}
@@ -660,14 +1050,26 @@ function LoginTabs() {
           Apply
           <span className="block text-[10px] font-medium text-slate-400">New volunteers</span>
         </button>
+        {tab === 'setup_password' && (
+          <button
+            type="button"
+            onClick={() => setTab('setup_password')}
+            className="rounded-lg px-3 py-2 text-xs font-semibold transition-all cursor-pointer bg-white text-purple-700 shadow-sm"
+          >
+            Setup Password
+            <span className="block text-[10px] font-medium text-slate-400">Admin invite</span>
+          </button>
+        )}
       </div>
 
       {/* Card */}
       <div className="rounded-2xl border border-slate-200/90 bg-white p-8 shadow-sm">
         {tab === 'signin' ? (
-          <SignInForm />
-        ) : (
+          <SignInForm onSetupPassword={() => setTab('setup_password')} />
+        ) : tab === 'apply' ? (
           <ApplyForm onSubmitted={() => setTab('signin')} />
+        ) : (
+          <SetupPasswordForm onSwitchToSignIn={() => setTab('signin')} />
         )}
       </div>
 
@@ -684,9 +1086,20 @@ function LoginTabs() {
               Apply for an internship
             </button>
           </>
-        ) : (
+        ) : tab === 'apply' ? (
           <>
             Already approved?{' '}
+            <button
+              type="button"
+              onClick={() => setTab('signin')}
+              className="font-semibold text-indigo-600 hover:text-indigo-500 cursor-pointer"
+            >
+              Sign in to your account
+            </button>
+          </>
+        ) : (
+          <>
+            Already set up your password?{' '}
             <button
               type="button"
               onClick={() => setTab('signin')}

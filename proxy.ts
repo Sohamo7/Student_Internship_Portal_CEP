@@ -63,7 +63,7 @@ export async function proxy(request: NextRequest) {
     // Verify role and approval status against database (profiles table)
     const { data: profile } = await supabase
       .from('profiles')
-      .select('role, application_status')
+      .select('role, application_status, invited_at, invite_accepted_at')
       .eq('id', user.id)
       .maybeSingle();
 
@@ -80,8 +80,16 @@ export async function proxy(request: NextRequest) {
     }
 
     // Admin routes strictly require role === 'admin'
-    if (pathname.startsWith('/admin') && profile.role !== 'admin') {
-      return NextResponse.redirect(new URL('/unauthorized', request.url));
+    if (pathname.startsWith('/admin')) {
+      if (profile.role !== 'admin') {
+        return NextResponse.redirect(new URL('/unauthorized', request.url));
+      }
+      // If invited admin has not accepted invite / set password yet:
+      if (profile.invited_at && !profile.invite_accepted_at) {
+        const setupUrl = new URL('/login', request.url);
+        setupUrl.searchParams.set('setup_password', 'true');
+        return NextResponse.redirect(setupUrl);
+      }
     }
 
     // Admin should not navigate student/intern routes
@@ -104,11 +112,16 @@ export async function proxy(request: NextRequest) {
   if (isAuthRoute && user) {
     const { data: profile } = await supabase
       .from('profiles')
-      .select('role, application_status')
+      .select('role, application_status, invited_at, invite_accepted_at')
       .eq('id', user.id)
       .maybeSingle();
 
     if (profile && (profile.role === 'admin' || profile.application_status === 'approved')) {
+      // Invited admin who has not accepted/set password stays on /login to set it
+      if (profile.role === 'admin' && profile.invited_at && !profile.invite_accepted_at) {
+        return response;
+      }
+
       if (profile.role === 'admin') {
         return NextResponse.redirect(new URL('/admin/dashboard', request.url));
       }

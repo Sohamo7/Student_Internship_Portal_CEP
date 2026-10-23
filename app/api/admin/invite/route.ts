@@ -66,7 +66,7 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  const redirectTo = `${siteOrigin(request)}/accept-invite`;
+  const redirectTo = `${siteOrigin(request)}/login?setup_password=true`;
   const { data: link, error: linkErr } = await admin.auth.admin.generateLink({
     type: 'invite',
     email,
