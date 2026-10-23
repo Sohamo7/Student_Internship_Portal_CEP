@@ -81,11 +81,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const { data: { session } } = await supabase.auth.getSession();
 
         if (session?.user && isMounted) {
-          let { data: profileData, error: profileErr } = await supabase
+          const { data: initialProfile, error: profileErr } = await supabase
             .from('profiles')
             .select('*')
             .eq('id', session.user.id)
             .maybeSingle();
+
+          let profileData = initialProfile;
 
           // If freshly registered and profile trigger is processing, retry once
           if (!profileData && !profileErr) {

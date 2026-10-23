@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { useAuth } from '@/lib/auth/auth-context';
-import { AlertTriangle, CheckCircle2 } from 'lucide-react';
+import { AlertTriangle } from 'lucide-react';
 
 export function DemoBanner() {
   const { isConfigured } = useAuth();

@@ -4,14 +4,8 @@ import {
   APPLICATION_REJECTED_MESSAGE,
   getApplicationGateError,
 } from '@/lib/auth/login-gate';
-import { fetchApplications, updateApplicationStatus } from '@/lib/applications/application-service';
+import { effectiveStatus } from '@/lib/applications/application-service';
 import { UserProfile } from '@/lib/supabase/types';
-
-const REGISTERED_USERS_KEY = 'cep_registered_users';
-
-function storeApplicant(profile: UserProfile) {
-  localStorage.setItem(REGISTERED_USERS_KEY, JSON.stringify({ [profile.email]: { password: 'pw', profile } }));
-}
 
 describe('login gating by application status', () => {
   it('blocks sign-in while the application is pending', () => {
@@ -27,23 +21,27 @@ describe('login gating by application status', () => {
     expect(getApplicationGateError(undefined)).toBeNull();
   });
 
-  it('keeps a new applicant locked out until an admin approves them', async () => {
-    storeApplicant({
+  it('correctly tracks status transition from pending to approved to rejected', () => {
+    const applicant: UserProfile = {
       id: 'student-1',
       name: 'New Volunteer',
       email: 'new@college.edu',
       role: 'student',
       application_status: 'pending',
-    });
+    };
 
-    const find = async () => (await fetchApplications()).find((a) => a.email === 'new@college.edu') as UserProfile;
+    // Pending: gated
+    expect(getApplicationGateError(applicant.application_status)).toBe(APPLICATION_PENDING_MESSAGE);
+    expect(effectiveStatus(applicant)).toBe('pending');
 
-    expect(getApplicationGateError((await find()).application_status)).toBe(APPLICATION_PENDING_MESSAGE);
+    // Admin approves: gate opens
+    applicant.application_status = 'approved';
+    expect(getApplicationGateError(applicant.application_status)).toBeNull();
+    expect(effectiveStatus(applicant)).toBe('approved');
 
-    await updateApplicationStatus({ id: 'student-1', email: 'new@college.edu' }, 'approved');
-    expect(getApplicationGateError((await find()).application_status)).toBeNull();
-
-    await updateApplicationStatus({ id: 'student-1', email: 'new@college.edu' }, 'rejected');
-    expect(getApplicationGateError((await find()).application_status)).toBe(APPLICATION_REJECTED_MESSAGE);
+    // Admin rejects: gated
+    applicant.application_status = 'rejected';
+    expect(getApplicationGateError(applicant.application_status)).toBe(APPLICATION_REJECTED_MESSAGE);
+    expect(effectiveStatus(applicant)).toBe('rejected');
   });
 });

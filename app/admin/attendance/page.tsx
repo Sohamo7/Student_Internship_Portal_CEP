@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState, Suspense } from 'react';
 import Link from 'next/link';
-import { useSearchParams } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Sidebar } from '@/components/sidebar';
 import { mapsLink } from '@/lib/geolocation';
 import {
@@ -24,6 +24,7 @@ import {
   AlertCircle,
   CheckCircle2,
   HelpCircle,
+  RotateCw,
 } from 'lucide-react';
 
 const DEFAULT_SITE = { latitude: 28.6139, longitude: 77.209 };
@@ -58,11 +59,12 @@ function distanceMeters(a: { latitude: number; longitude: number }, b: { latitud
 }
 
 function AdminAttendanceContent() {
+  const router = useRouter();
   const searchParams = useSearchParams();
-  const initialRole = searchParams.get('role');
-  const [roleFilter, setRoleFilter] = useState<'all' | 'student' | 'intern'>(
-    initialRole === 'student' ? 'student' : initialRole === 'intern' ? 'intern' : 'all'
-  );
+  const urlRole = searchParams.get('role');
+  const [activeTabOverride, setActiveTabOverride] = useState<'all' | 'student' | 'intern' | null>(null);
+  const roleFilter: 'all' | 'student' | 'intern' =
+    activeTabOverride ?? (urlRole === 'student' ? 'student' : urlRole === 'intern' ? 'intern' : 'all');
 
   const [records, setRecords] = useState<AttendanceRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -88,17 +90,31 @@ function AdminAttendanceContent() {
   };
 
   useEffect(() => {
-    load();
+    let isMounted = true;
+    fetchAllAttendance()
+      .then((data) => {
+        if (isMounted) setRecords(data);
+      })
+      .catch((err) => {
+        if (isMounted) setLoadError(err instanceof Error ? err.message : 'Failed to load attendance records.');
+      })
+      .finally(() => {
+        if (isMounted) setLoading(false);
+      });
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
-  useEffect(() => {
-    const r = searchParams.get('role');
-    if (r === 'student' || r === 'intern') {
-      setRoleFilter(r);
+  const handleTabChange = (targetRole: 'all' | 'student' | 'intern') => {
+    setActiveTabOverride(targetRole);
+    if (targetRole === 'all') {
+      router.replace('/admin/attendance', { scroll: false });
     } else {
-      setRoleFilter('all');
+      router.replace(`/admin/attendance?role=${targetRole}`, { scroll: false });
     }
-  }, [searchParams]);
+  };
 
   const verifyOne = async (id: string) => {
     setVerifyingId(id);
@@ -164,6 +180,10 @@ function AdminAttendanceContent() {
     return r.role === roleFilter;
   });
 
+  const totalCount = records.length;
+  const studentCount = records.filter((r) => r.role === 'student').length;
+  const internCount = records.filter((r) => r.role === 'intern').length;
+
   return (
     <div className="flex flex-1 flex-col md:flex-row bg-slate-50/60">
       <Sidebar role="admin" />
@@ -182,34 +202,110 @@ function AdminAttendanceContent() {
                 {roleFilter === 'student'
                   ? 'Student Attendance Verification'
                   : roleFilter === 'intern'
-                  ? 'Intern Attendance Verification'
-                  : 'Attendance Verification'}
+                    ? 'Intern Attendance Verification'
+                    : 'Attendance Verification'}
               </h1>
               <p className="text-sm text-slate-600">
                 {roleFilter === 'student'
                   ? 'Verify student volunteer attendance check-in locations with GPS geofence tracking.'
                   : roleFilter === 'intern'
-                  ? 'Verify active intern attendance check-in locations with GPS geofence tracking.'
-                  : 'Verify volunteer and intern attendance check-in locations with GPS geofence tracking.'}
+                    ? 'Verify active intern attendance check-in locations with GPS geofence tracking.'
+                    : 'Verify volunteer and intern attendance check-in locations with GPS geofence tracking.'}
               </p>
             </div>
 
-            <button
-              onClick={verifyAllInRange}
-              disabled={bulkVerifying || loading}
-              className="inline-flex items-center gap-1.5 rounded-xl bg-purple-600 px-4 py-2 text-xs font-semibold text-white shadow-sm hover:bg-purple-500 cursor-pointer shrink-0 disabled:opacity-50"
-            >
-              {bulkVerifying ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin" /> Verifying Records...
-                </>
-              ) : (
-                <>
-                  <Check className="h-4 w-4" /> Verify In-Range Check-ins
-                </>
-              )}
-            </button>
+            <div className="flex items-center gap-2 shrink-0">
+              <button
+                type="button"
+                onClick={load}
+                disabled={loading || bulkVerifying}
+                className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 shadow-2xs hover:bg-slate-50 cursor-pointer disabled:opacity-50"
+                title="Refresh attendance records"
+              >
+                <RotateCw className={`h-3.5 w-3.5 text-slate-500 ${loading ? 'animate-spin' : ''}`} />
+                <span>Refresh</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={verifyAllInRange}
+                disabled={bulkVerifying || loading}
+                className="inline-flex items-center gap-1.5 rounded-xl bg-purple-600 px-4 py-2 text-xs font-semibold text-white shadow-sm hover:bg-purple-500 cursor-pointer shrink-0 disabled:opacity-50"
+              >
+                {bulkVerifying ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" /> Verifying Records...
+                  </>
+                ) : (
+                  <>
+                    <Check className="h-4 w-4" /> Verify In-Range Check-ins
+                  </>
+                )}
+              </button>
+            </div>
           </div>
+        </div>
+
+        {/* Interactive Filter Tab Pills */}
+        <div className="flex flex-wrap items-center gap-2 border-b border-slate-200/80 pb-3">
+          <button
+            type="button"
+            onClick={() => handleTabChange('all')}
+            className={`inline-flex items-center gap-2 rounded-xl px-3.5 py-2 text-xs font-bold transition-all cursor-pointer ${
+              roleFilter === 'all'
+                ? 'bg-purple-600 text-white shadow-xs shadow-purple-600/30'
+                : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
+            }`}
+          >
+            <span>All Attendance</span>
+            <span
+              className={`rounded-full px-1.5 py-0.2 text-[10px] font-black ${
+                roleFilter === 'all' ? 'bg-purple-800 text-white' : 'bg-slate-100 text-slate-700'
+              }`}
+            >
+              {totalCount}
+            </span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => handleTabChange('student')}
+            className={`inline-flex items-center gap-2 rounded-xl px-3.5 py-2 text-xs font-bold transition-all cursor-pointer ${
+              roleFilter === 'student'
+                ? 'bg-indigo-600 text-white shadow-xs shadow-indigo-600/30'
+                : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
+            }`}
+          >
+            <GraduationCap className="h-3.5 w-3.5" />
+            <span>Students</span>
+            <span
+              className={`rounded-full px-1.5 py-0.2 text-[10px] font-black ${
+                roleFilter === 'student' ? 'bg-indigo-800 text-white' : 'bg-slate-100 text-slate-700'
+              }`}
+            >
+              {studentCount}
+            </span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => handleTabChange('intern')}
+            className={`inline-flex items-center gap-2 rounded-xl px-3.5 py-2 text-xs font-bold transition-all cursor-pointer ${
+              roleFilter === 'intern'
+                ? 'bg-teal-600 text-white shadow-xs shadow-teal-600/30'
+                : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
+            }`}
+          >
+            <Users className="h-3.5 w-3.5" />
+            <span>Interns</span>
+            <span
+              className={`rounded-full px-1.5 py-0.2 text-[10px] font-black ${
+                roleFilter === 'intern' ? 'bg-teal-800 text-white' : 'bg-slate-100 text-slate-700'
+              }`}
+            >
+              {internCount}
+            </span>
+          </button>
         </div>
 
         {/* Feedback banners */}
@@ -243,12 +339,23 @@ function AdminAttendanceContent() {
               <Loader2 className="h-4 w-4 animate-spin" /> Loading attendance records from database...
             </div>
           ) : filteredRecords.length === 0 ? (
-            <div className="p-10 text-center text-xs text-slate-400">
-              {roleFilter === 'intern'
-                ? 'No intern attendance records found. Only records belonging to profiles with role "intern" appear here.'
-                : roleFilter === 'student'
-                ? 'No student attendance records found. Only records belonging to profiles with role "student" appear here.'
-                : 'No attendance records found.'}
+            <div className="p-10 text-center space-y-3">
+              <p className="text-xs text-slate-500">
+                {roleFilter === 'intern'
+                  ? 'No intern attendance records found. Only records belonging to profiles with role "intern" appear here.'
+                  : roleFilter === 'student'
+                    ? 'No student attendance records found. Only records belonging to profiles with role "student" appear here.'
+                    : 'No attendance records found.'}
+              </p>
+              {totalCount > 0 && roleFilter !== 'all' && (
+                <button
+                  type="button"
+                  onClick={() => handleTabChange('all')}
+                  className="inline-flex items-center gap-1.5 text-xs font-bold text-purple-600 hover:text-purple-700 cursor-pointer"
+                >
+                  View all {totalCount} records across all roles →
+                </button>
+              )}
             </div>
           ) : (
             <div className="overflow-x-auto">

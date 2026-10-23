@@ -35,10 +35,21 @@ export default function InternAttendancePage() {
 
   useEffect(() => {
     if (!user) return;
-    fetchMyAttendance(user.id).then((rows) => {
-      setRecords(rows);
-      setLoading(false);
-    });
+    let isMounted = true;
+    fetchMyAttendance(user.id)
+      .then((rows) => {
+        if (isMounted) setRecords(rows);
+      })
+      .catch((err) => {
+        if (isMounted) setLocationError(err instanceof Error ? err.message : 'Could not load attendance history.');
+      })
+      .finally(() => {
+        if (isMounted) setLoading(false);
+      });
+
+    return () => {
+      isMounted = false;
+    };
   }, [user]);
 
   const openRecord = records.find((r) => !r.check_out_at) || null;

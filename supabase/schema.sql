@@ -326,8 +326,8 @@ DROP POLICY IF EXISTS "Students can check out own attendance" ON public.attendan
 CREATE POLICY "Students can check out own attendance"
   ON public.attendance
   FOR UPDATE
-  USING (auth.uid() = student_id AND check_out_at IS NULL)
-  WITH CHECK (auth.uid() = student_id);
+  USING (auth.uid() = student_id AND check_out_at IS NULL AND verified = FALSE)
+  WITH CHECK (auth.uid() = student_id AND verified = FALSE);
 
 -- Admins can update any row (used to mark a record "verified")
 DROP POLICY IF EXISTS "Admins can update any attendance" ON public.attendance;
