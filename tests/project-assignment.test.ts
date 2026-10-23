@@ -5,6 +5,8 @@ import {
   fetchProjects,
   fetchProjectsForMember,
   unassignMember,
+  updateProject,
+  deleteProject,
 } from '@/lib/projects/project-service';
 
 const NEW_PROJECT = {
@@ -61,5 +63,25 @@ describe('project assignment', () => {
 
     const stranger = await fetchProjectsForMember('stranger@college.edu');
     expect(stranger.map((p) => p.id)).not.toContain(project.id);
+  });
+
+  it('updates project fields successfully', async () => {
+    const project = await createProject(NEW_PROJECT);
+    const updated = await updateProject(project.id, {
+      title: 'Updated Outreach Project',
+      quota: 8,
+      duration_weeks: 10,
+    });
+    expect(updated.title).toBe('Updated Outreach Project');
+    expect(updated.quota).toBe(8);
+    expect(updated.duration_weeks).toBe(10);
+  });
+
+  it('deletes project successfully', async () => {
+    const project = await createProject(NEW_PROJECT);
+    expect((await fetchProjects()).some((p) => p.id === project.id)).toBe(true);
+
+    await deleteProject(project.id);
+    expect((await fetchProjects()).some((p) => p.id === project.id)).toBe(false);
   });
 });

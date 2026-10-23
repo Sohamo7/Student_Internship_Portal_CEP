@@ -35,6 +35,8 @@ interface AuthContextType {
     application?: ApplicationDetails
   ) => Promise<{ success: boolean; error?: string }>;
   switchRole?: (targetRole: UserRole) => void;
+  updateProfile?: (updates: Partial<UserProfile>) => Promise<{ success: boolean; error?: string }>;
+  refreshProfile?: () => Promise<void>;
   logout: () => Promise<void>;
 }
 
@@ -302,6 +304,40 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     console.warn('Role switching / impersonation without authentication is disabled in production.');
   };
 
+  const refreshProfile = async () => {
+    if (!user || !isConfigured) return;
+    try {
+      const supabase = createClient();
+      const { data } = await supabase.from('profiles').select('*').eq('id', user.id).maybeSingle();
+      if (data) setProfile(data as UserProfile);
+    } catch (err) {
+      console.error('Failed to refresh profile:', err);
+    }
+  };
+
+  const updateProfile = async (updates: Partial<UserProfile>): Promise<{ success: boolean; error?: string }> => {
+    if (!user) return { success: false, error: 'Not authenticated' };
+    if (isConfigured) {
+      try {
+        const supabase = createClient();
+        const { data, error } = await supabase
+          .from('profiles')
+          .update(updates)
+          .eq('id', user.id)
+          .select('*')
+          .single();
+        if (error) return { success: false, error: error.message };
+        if (data) setProfile(data as UserProfile);
+        return { success: true };
+      } catch (err) {
+        return { success: false, error: err instanceof Error ? err.message : 'Failed to update profile' };
+      }
+    } else {
+      setProfile((prev) => (prev ? { ...prev, ...updates } : null));
+      return { success: true };
+    }
+  };
+
   const logout = async () => {
     setIsLoading(true);
     try {
@@ -335,6 +371,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         login,
         register,
         switchRole,
+        updateProfile,
+        refreshProfile,
         logout,
       }}
     >

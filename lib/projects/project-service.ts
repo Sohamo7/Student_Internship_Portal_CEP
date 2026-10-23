@@ -219,8 +219,83 @@ export async function unassignMember(projectId: string, email: string): Promise<
   );
 }
 
-export async function fetchProjectsForMember(email: string): Promise<Project[]> {
-  const normalized = email.toLowerCase();
+export async function fetchProjectsForMember(email: string, memberId?: string): Promise<Project[]> {
+  const normalized = email ? email.trim().toLowerCase() : '';
   const projects = await fetchProjects();
-  return projects.filter((p) => p.assigned.some((m) => m.email.toLowerCase() === normalized));
+  return projects.filter((p) =>
+    p.assigned.some(
+      (m) =>
+        (normalized && m.email && m.email.trim().toLowerCase() === normalized) ||
+        (memberId && m.id && m.id === memberId)
+    )
+  );
 }
+
+export type UpdateProjectInput = Partial<CreateProjectInput>;
+
+export async function updateProject(id: string, data: UpdateProjectInput): Promise<Project> {
+  if (isSupabaseConfigured()) {
+    const supabase = createClient();
+    const updatePayload: Record<string, unknown> = {};
+    if (data.title !== undefined) updatePayload.title = data.title;
+    if (data.description !== undefined) updatePayload.description = data.description;
+    if (data.track !== undefined) updatePayload.track = data.track;
+    if (data.supervisor_name !== undefined) updatePayload.supervisor_name = data.supervisor_name;
+    if (data.supervisor_email !== undefined) updatePayload.supervisor_email = data.supervisor_email;
+    if (data.duration_weeks !== undefined) updatePayload.duration_weeks = data.duration_weeks;
+    if (data.target_hours !== undefined) updatePayload.target_hours = data.target_hours;
+    if (data.quota !== undefined) updatePayload.quota = data.quota;
+    if (data.milestones !== undefined) updatePayload.milestones = data.milestones;
+    if (data.attachment_path !== undefined) updatePayload.attachment_path = data.attachment_path;
+    if (data.attachment_name !== undefined) updatePayload.attachment_name = data.attachment_name;
+    if (data.attachment_url !== undefined) updatePayload.attachment_url = data.attachment_url;
+
+    let { data: row, error } = await supabase
+      .from('projects')
+      .update(updatePayload)
+      .eq('id', id)
+      .select(PROJECT_SELECT)
+      .single();
+
+    if (error && error.message?.includes('attachment_')) {
+      delete updatePayload.attachment_path;
+      delete updatePayload.attachment_name;
+      delete updatePayload.attachment_url;
+      const retry = await supabase.from('projects').update(updatePayload).eq('id', id).select(PROJECT_SELECT).single();
+      row = retry.data;
+      error = retry.error;
+    }
+
+    if (error) throw new Error(error.message);
+    return fromRow(row as unknown as ProjectRow);
+  }
+
+  const existing = readLocal();
+  const updated = existing.map((p) => {
+    if (p.id !== id) return p;
+    return {
+      ...p,
+      ...data,
+      milestones: data.milestones ?? p.milestones,
+      attachment_path: data.attachment_path !== undefined ? data.attachment_path : p.attachment_path,
+      attachment_name: data.attachment_name !== undefined ? data.attachment_name : p.attachment_name,
+      attachment_url: data.attachment_url !== undefined ? data.attachment_url : p.attachment_url,
+    };
+  });
+  writeLocal(updated);
+  const found = updated.find((p) => p.id === id);
+  if (!found) throw new Error('Project not found');
+  return found;
+}
+
+export async function deleteProject(id: string): Promise<void> {
+  if (isSupabaseConfigured()) {
+    const supabase = createClient();
+    const { error } = await supabase.from('projects').delete().eq('id', id);
+    if (error) throw new Error(error.message);
+    return;
+  }
+
+  writeLocal(readLocal().filter((p) => p.id !== id));
+}
+

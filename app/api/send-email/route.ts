@@ -22,7 +22,7 @@ import { requireAdmin } from '@/lib/supabase/require-admin';
 //   • Every field is length-capped and HTML-escaped in the templates, and each
 //     (type, recipient) pair is rate limited.
 
-const throttle = createThrottle(30_000);
+const throttle = createThrottle(15_000);
 const RECENT_APPLICATION_WINDOW_MS = 15 * 60 * 1000;
 
 type EmailType = 'application_submitted' | 'application_approved' | 'project_assigned';
@@ -31,11 +31,20 @@ interface EmailRequestBody {
   type?: unknown;
   to?: unknown;
   name?: unknown;
+  joineeId?: unknown;
+  role?: unknown;
   projectTitle?: unknown;
   supervisorName?: unknown;
   supervisorEmail?: unknown;
+  description?: unknown;
+  track?: unknown;
+  durationWeeks?: unknown;
+  targetHours?: unknown;
+  quota?: unknown;
+  milestones?: unknown;
   attachmentName?: unknown;
   attachmentUrl?: unknown;
+  portalUrl?: unknown;
 }
 
 const fail = (error: string, status: number) => NextResponse.json({ success: false, error }, { status });
@@ -97,16 +106,49 @@ export async function POST(request: NextRequest) {
     switch (type) {
       case 'application_submitted':
         return NextResponse.json({ success: true, ...(await sendApplicationSubmittedEmail(to, name)) });
-      case 'application_approved':
-        return NextResponse.json({ success: true, ...(await sendApplicationApprovedEmail(to, name)) });
+      case 'application_approved': {
+        const joineeId = clampText(body.joineeId, 50) || undefined;
+        const role = clampText(body.role, 20) || undefined;
+        return NextResponse.json({
+          success: true,
+          ...(await sendApplicationApprovedEmail(to, name, joineeId, role)),
+        });
+      }
       case 'project_assigned': {
         const projectTitle = clampText(body.projectTitle, 200);
         const supervisorName = clampText(body.supervisorName, 100);
         const supervisorEmail = normalizeEmail(body.supervisorEmail);
+        const description = clampText(body.description, 4000) || undefined;
+        const track = clampText(body.track, 100) || undefined;
+        const durationWeeks =
+          typeof body.durationWeeks === 'number' && body.durationWeeks > 0
+            ? body.durationWeeks
+            : typeof body.durationWeeks === 'string' && parseInt(body.durationWeeks, 10) > 0
+            ? parseInt(body.durationWeeks, 10)
+            : undefined;
+        const targetHours =
+          typeof body.targetHours === 'number' && body.targetHours > 0
+            ? body.targetHours
+            : typeof body.targetHours === 'string' && parseInt(body.targetHours, 10) > 0
+            ? parseInt(body.targetHours, 10)
+            : undefined;
+        const quota =
+          typeof body.quota === 'number' && body.quota > 0
+            ? body.quota
+            : typeof body.quota === 'string' && parseInt(body.quota, 10) > 0
+            ? parseInt(body.quota, 10)
+            : undefined;
+        const milestones = Array.isArray(body.milestones)
+          ? body.milestones.map((m) => clampText(m, 250)).filter(Boolean).slice(0, 20)
+          : undefined;
         const attachmentName = clampText(body.attachmentName, 150) || undefined;
         const attachmentUrl =
           typeof body.attachmentUrl === 'string' && body.attachmentUrl.trim()
             ? body.attachmentUrl.trim()
+            : undefined;
+        const portalUrl =
+          typeof body.portalUrl === 'string' && body.portalUrl.trim()
+            ? body.portalUrl.trim()
             : undefined;
 
         if (!projectTitle || !supervisorName || !supervisorEmail) {
@@ -121,7 +163,16 @@ export async function POST(request: NextRequest) {
             supervisorName,
             supervisorEmail,
             attachmentName,
-            attachmentUrl
+            attachmentUrl,
+            {
+              description,
+              track,
+              durationWeeks,
+              targetHours,
+              quota,
+              milestones,
+              portalUrl,
+            }
           )),
         });
       }

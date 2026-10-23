@@ -65,9 +65,7 @@ function AdminAttendanceContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const urlRole = searchParams.get('role');
-  const [activeTabOverride, setActiveTabOverride] = useState<'all' | 'student' | 'intern' | null>(null);
-  const roleFilter: 'all' | 'student' | 'intern' =
-    activeTabOverride ?? (urlRole === 'student' ? 'student' : urlRole === 'intern' ? 'intern' : 'all');
+  const roleFilter: 'student' | 'intern' = urlRole === 'intern' ? 'intern' : 'student';
 
   const [records, setRecords] = useState<AttendanceRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -129,15 +127,6 @@ function AdminAttendanceContent() {
     };
   }, []);
 
-  const handleTabChange = (targetRole: 'all' | 'student' | 'intern') => {
-    setActiveTabOverride(targetRole);
-    if (targetRole === 'all') {
-      router.replace('/admin/attendance', { scroll: false });
-    } else {
-      router.replace(`/admin/attendance?role=${targetRole}`, { scroll: false });
-    }
-  };
-
   const verifyOne = async (id: string) => {
     setVerifyingId(id);
     setActionError(null);
@@ -160,7 +149,7 @@ function AdminAttendanceContent() {
     const toVerify = records.filter(
       (r) =>
         !r.verified &&
-        (roleFilter === 'all' || r.role === roleFilter) &&
+        (roleFilter === 'intern' ? r.role === 'intern' : (r.role === 'student' || r.role == null)) &&
         (!geofenceEnabled ||
           (r.in_latitude != null &&
             r.in_longitude != null &&
@@ -199,13 +188,9 @@ function AdminAttendanceContent() {
   };
 
   const filteredRecords = records.filter((r) => {
-    if (roleFilter === 'all') return true;
-    return r.role === roleFilter;
+    if (roleFilter === 'intern') return r.role === 'intern';
+    return r.role === 'student' || r.role == null;
   });
-
-  const totalCount = records.length;
-  const studentCount = records.filter((r) => r.role === 'student').length;
-  const internCount = records.filter((r) => r.role === 'intern').length;
 
   return (
     <div className="flex flex-1 flex-col md:flex-row bg-slate-50/60">
@@ -294,67 +279,7 @@ function AdminAttendanceContent() {
           </div>
         </div>
 
-        {/* Interactive Filter Tab Pills */}
-        <div className="flex flex-wrap items-center gap-2 border-b border-slate-200/80 pb-3">
-          <button
-            type="button"
-            onClick={() => handleTabChange('all')}
-            className={`inline-flex items-center gap-2 rounded-xl px-3.5 py-2 text-xs font-bold transition-all cursor-pointer ${
-              roleFilter === 'all'
-                ? 'bg-purple-600 text-white shadow-xs shadow-purple-600/30'
-                : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
-            }`}
-          >
-            <span>All Attendance</span>
-            <span
-              className={`rounded-full px-1.5 py-0.2 text-[10px] font-black ${
-                roleFilter === 'all' ? 'bg-purple-800 text-white' : 'bg-slate-100 text-slate-700'
-              }`}
-            >
-              {totalCount}
-            </span>
-          </button>
 
-          <button
-            type="button"
-            onClick={() => handleTabChange('student')}
-            className={`inline-flex items-center gap-2 rounded-xl px-3.5 py-2 text-xs font-bold transition-all cursor-pointer ${
-              roleFilter === 'student'
-                ? 'bg-indigo-600 text-white shadow-xs shadow-indigo-600/30'
-                : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
-            }`}
-          >
-            <GraduationCap className="h-3.5 w-3.5" />
-            <span>Students</span>
-            <span
-              className={`rounded-full px-1.5 py-0.2 text-[10px] font-black ${
-                roleFilter === 'student' ? 'bg-indigo-800 text-white' : 'bg-slate-100 text-slate-700'
-              }`}
-            >
-              {studentCount}
-            </span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => handleTabChange('intern')}
-            className={`inline-flex items-center gap-2 rounded-xl px-3.5 py-2 text-xs font-bold transition-all cursor-pointer ${
-              roleFilter === 'intern'
-                ? 'bg-teal-600 text-white shadow-xs shadow-teal-600/30'
-                : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
-            }`}
-          >
-            <Users className="h-3.5 w-3.5" />
-            <span>Interns</span>
-            <span
-              className={`rounded-full px-1.5 py-0.2 text-[10px] font-black ${
-                roleFilter === 'intern' ? 'bg-teal-800 text-white' : 'bg-slate-100 text-slate-700'
-              }`}
-            >
-              {internCount}
-            </span>
-          </button>
-        </div>
 
         {/* Feedback banners */}
         {actionError && (
@@ -390,20 +315,9 @@ function AdminAttendanceContent() {
             <div className="p-10 text-center space-y-3">
               <p className="text-xs text-slate-500">
                 {roleFilter === 'intern'
-                  ? 'No intern attendance records found. Only records belonging to profiles with role "intern" appear here.'
-                  : roleFilter === 'student'
-                    ? 'No student attendance records found. Only records belonging to profiles with role "student" appear here.'
-                    : 'No attendance records found.'}
+                  ? 'No intern attendance records found. When interns check in on their devices, their logs will appear here.'
+                  : 'No student attendance records found. When student volunteers check in on their devices, their logs will appear here.'}
               </p>
-              {totalCount > 0 && roleFilter !== 'all' && (
-                <button
-                  type="button"
-                  onClick={() => handleTabChange('all')}
-                  className="inline-flex items-center gap-1.5 text-xs font-bold text-purple-600 hover:text-purple-700 cursor-pointer"
-                >
-                  View all {totalCount} records across all roles →
-                </button>
-              )}
             </div>
           ) : (
             <div className="overflow-x-auto">

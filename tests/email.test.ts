@@ -34,6 +34,51 @@ describe('email templates escape user-supplied text', () => {
   it('still renders normal text unchanged', () => {
     expect(renderApplicationSubmittedHtml('Asha Rao')).toContain('Application Received, Asha Rao!');
   });
+
+  it('renders complete project details (track, description, metrics, and milestones) when provided', () => {
+    const html = renderProjectAssignedHtml(
+      'Asha Rao',
+      'Digital Literacy Initiative',
+      'Dr. Sharma',
+      'sharma@ngo.org',
+      'project_brief.pdf',
+      'https://example.org/project_brief.pdf',
+      {
+        track: 'Education',
+        description: 'Empowering underprivileged students with digital skills.',
+        durationWeeks: 8,
+        targetHours: 120,
+        milestones: ['Curriculum setup', 'Classroom delivery', 'Final evaluation'],
+      }
+    );
+    expect(html).toContain('Education Track');
+    expect(html).toContain('Empowering underprivileged students with digital skills.');
+    expect(html).toContain('8 Weeks');
+    expect(html).toContain('120 Hours');
+    expect(html).toContain('Curriculum setup');
+    expect(html).toContain('Classroom delivery');
+    expect(html).toContain('project_brief.pdf');
+    expect(html).toContain('Download Project Attachment');
+  });
+
+  it('escapes attacks inside project description and milestones', () => {
+    const html = renderProjectAssignedHtml(
+      'Asha',
+      'Clean Initiative',
+      'Mentor',
+      'mentor@ngo.org',
+      null,
+      null,
+      {
+        track: ATTACK,
+        description: ATTACK,
+        milestones: [ATTACK],
+      }
+    );
+    expect(html).not.toContain('<script>');
+    expect(html).not.toContain('<img');
+    expect(html).toContain('&lt;script&gt;');
+  });
 });
 
 describe('request guards', () => {

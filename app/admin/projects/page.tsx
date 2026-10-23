@@ -7,6 +7,8 @@ import {
   Project,
   fetchProjects,
   createProject,
+  updateProject,
+  deleteProject,
   assignMember,
   unassignMember,
 } from '@/lib/projects/project-service';
@@ -24,6 +26,7 @@ import {
   Download,
   FileText,
   Loader2,
+  Pencil,
 } from 'lucide-react';
 import {
   ATTACHMENT_ACCEPT,
@@ -278,15 +281,21 @@ function AssignPanel({ project, onChange, onClose }: { project: Project; onChang
       }
     }
     setAssignError(null);
-    notifyProjectAssigned(
-      assignedEmail,
-      assignedName,
-      project.title,
-      project.supervisor_name,
-      project.supervisor_email,
-      project.attachment_name,
-      project.attachment_url
-    );
+    notifyProjectAssigned({
+      to: assignedEmail,
+      name: assignedName,
+      projectTitle: project.title,
+      description: project.description,
+      track: project.track,
+      durationWeeks: project.duration_weeks,
+      targetHours: project.target_hours,
+      quota: project.quota,
+      milestones: project.milestones,
+      supervisorName: project.supervisor_name,
+      supervisorEmail: project.supervisor_email,
+      attachmentName: project.attachment_name,
+      attachmentUrl: project.attachment_url,
+    });
     onChange();
   };
 
@@ -349,10 +358,300 @@ function AssignPanel({ project, onChange, onClose }: { project: Project; onChang
   );
 }
 
+function EditProjectModal({
+  project,
+  onUpdated,
+  onClose,
+}: {
+  project: Project;
+  onUpdated: () => void;
+  onClose: () => void;
+}) {
+  const [title, setTitle] = useState(project.title);
+  const [description, setDescription] = useState(project.description);
+  const [track, setTrack] = useState(project.track);
+  const [supervisorName, setSupervisorName] = useState(project.supervisor_name);
+  const [supervisorEmail, setSupervisorEmail] = useState(project.supervisor_email);
+  const [quota, setQuota] = useState(project.quota);
+  const [durationWeeks, setDurationWeeks] = useState(project.duration_weeks);
+  const [targetHours, setTargetHours] = useState(project.target_hours);
+
+  const [currentAttachment, setCurrentAttachment] = useState<{
+    path: string | null;
+    name: string | null;
+    url: string | null;
+  }>({
+    path: project.attachment_path || null,
+    name: project.attachment_name || null,
+    url: project.attachment_url || null,
+  });
+  const [attachmentFile, setAttachmentFile] = useState<File | null>(null);
+  const [removeAttachment, setRemoveAttachment] = useState(false);
+
+  const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+
+  const { settings } = useOrgSettings();
+  const savedSupervisors = settings.supervisors.filter((s) => s.name.trim() && s.email.trim());
+
+  const pickSupervisor = (id: string) => {
+    const found = savedSupervisors.find((s) => s.id === id);
+    if (!found) return;
+    setSupervisorName(found.name);
+    setSupervisorEmail(found.email);
+    const matchingTrack = TRACKS.find((t) => t.toLowerCase() === found.track.toLowerCase());
+    if (matchingTrack) setTrack(matchingTrack);
+  };
+
+  const handleAttachmentChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0] || null;
+    setError(null);
+    if (file) {
+      const err = validateAttachment(file);
+      if (err) {
+        setError(err);
+        e.target.value = '';
+        setAttachmentFile(null);
+        return;
+      }
+    }
+    setAttachmentFile(file);
+    setRemoveAttachment(false);
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!title.trim() || !supervisorName.trim() || !supervisorEmail.trim()) {
+      setError('Please fill in the project title and supervisor details.');
+      return;
+    }
+    setError(null);
+    setSubmitting(true);
+    try {
+      let finalPath = removeAttachment ? null : currentAttachment.path;
+      let finalName = removeAttachment ? null : currentAttachment.name;
+      let finalUrl = removeAttachment ? null : currentAttachment.url;
+
+      if (attachmentFile) {
+        const uploaded = await uploadProjectAttachment(attachmentFile);
+        finalPath = uploaded.path;
+        finalName = uploaded.name;
+        finalUrl = uploaded.url;
+      }
+
+      await updateProject(project.id, {
+        title: title.trim(),
+        description: description.trim() || 'No description provided yet.',
+        track,
+        supervisor_name: supervisorName.trim(),
+        supervisor_email: supervisorEmail.trim(),
+        quota,
+        duration_weeks: durationWeeks,
+        target_hours: targetHours,
+        attachment_path: finalPath,
+        attachment_name: finalName,
+        attachment_url: finalUrl,
+      });
+
+      onUpdated();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to update project.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4 backdrop-blur-xs">
+      <div className="w-full max-w-xl max-h-[90vh] overflow-y-auto rounded-2xl bg-white p-6 shadow-xl border border-slate-200">
+        <div className="flex items-center justify-between pb-4 border-b border-slate-100">
+          <h3 className="text-base font-bold text-slate-900">Edit Project Program</h3>
+          <button type="button" onClick={onClose} className="rounded-lg p-1 text-slate-400 hover:text-slate-600 hover:bg-slate-100 cursor-pointer">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        {error && <p className="mt-3 text-xs font-medium text-rose-700 bg-rose-50 border border-rose-200 rounded-xl p-3">{error}</p>}
+
+        <form onSubmit={handleSubmit} className="mt-4 space-y-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">Project Title</label>
+              <input value={title} onChange={(e) => setTitle(e.target.value)} className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs" />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">Track</label>
+              <select value={track} onChange={(e) => setTrack(e.target.value)} className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs bg-white">
+                {TRACKS.map((t) => <option key={t} value={t}>{t}</option>)}
+              </select>
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 mb-1">Description</label>
+            <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={3} className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs" />
+          </div>
+
+          {savedSupervisors.length > 0 && (
+            <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3">
+              <label className="block text-[11px] font-semibold text-slate-600 mb-1">Pick saved supervisor</label>
+              <select onChange={(e) => pickSupervisor(e.target.value)} defaultValue="" className="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-700">
+                <option value="" disabled>-- Select a supervisor --</option>
+                {savedSupervisors.map((s) => (
+                  <option key={s.id} value={s.id}>{s.name} · {s.track || 'General'} ({s.email})</option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">Supervisor Name</label>
+              <input value={supervisorName} onChange={(e) => setSupervisorName(e.target.value)} className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs" />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">Supervisor Email</label>
+              <input type="email" value={supervisorEmail} onChange={(e) => setSupervisorEmail(e.target.value)} className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs" />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-3 gap-3">
+            <div>
+              <label className="block text-[11px] font-semibold text-slate-700 mb-1">Capacity (Quota)</label>
+              <input type="number" min={project.assigned.length || 1} max={50} value={quota} onChange={(e) => setQuota(parseInt(e.target.value, 10) || 1)} className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs" />
+            </div>
+            <div>
+              <label className="block text-[11px] font-semibold text-slate-700 mb-1">Duration (wks)</label>
+              <input type="number" min={1} max={52} value={durationWeeks} onChange={(e) => setDurationWeeks(parseInt(e.target.value, 10) || 1)} className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs" />
+            </div>
+            <div>
+              <label className="block text-[11px] font-semibold text-slate-700 mb-1">Target Hours</label>
+              <input type="number" min={10} max={1000} value={targetHours} onChange={(e) => setTargetHours(parseInt(e.target.value, 10) || 10)} className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs" />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 mb-1">Project Attachment</label>
+            {currentAttachment.name && !removeAttachment && !attachmentFile ? (
+              <div className="flex items-center justify-between rounded-xl border border-purple-200 bg-purple-50/50 px-3 py-2 text-xs">
+                <div className="flex items-center gap-2 truncate">
+                  <FileText className="h-4 w-4 text-purple-600 shrink-0" />
+                  <span className="truncate font-medium text-slate-800">{currentAttachment.name}</span>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <label className="cursor-pointer font-semibold text-purple-600 hover:text-purple-700">
+                    Replace
+                    <input type="file" accept={ATTACHMENT_ACCEPT} onChange={handleAttachmentChange} className="hidden" />
+                  </label>
+                  <button type="button" onClick={() => setRemoveAttachment(true)} className="text-rose-500 hover:text-rose-700 cursor-pointer">
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              </div>
+            ) : attachmentFile ? (
+              <div className="flex items-center justify-between rounded-xl border border-purple-200 bg-purple-50/50 px-3 py-2 text-xs">
+                <div className="flex items-center gap-2 truncate">
+                  <FileText className="h-4 w-4 text-purple-600 shrink-0" />
+                  <span className="truncate font-semibold text-slate-800">{attachmentFile.name} (New)</span>
+                </div>
+                <button type="button" onClick={() => setAttachmentFile(null)} className="text-slate-400 hover:text-slate-600 cursor-pointer">
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+            ) : (
+              <label className="flex items-center justify-center gap-2 rounded-xl border border-dashed border-slate-300 bg-slate-50 p-3 text-xs text-slate-600 hover:bg-slate-100 cursor-pointer">
+                <Paperclip className="h-4 w-4 text-slate-400" />
+                <span>Upload attachment (PDF, DOCX, etc.)</span>
+                <input type="file" accept={ATTACHMENT_ACCEPT} onChange={handleAttachmentChange} className="hidden" />
+              </label>
+            )}
+          </div>
+
+          <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
+            <button type="button" onClick={onClose} disabled={submitting} className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 cursor-pointer">
+              Cancel
+            </button>
+            <button type="submit" disabled={submitting} className="inline-flex items-center gap-1.5 rounded-xl bg-purple-600 px-4 py-2 text-xs font-semibold text-white shadow-sm hover:bg-purple-500 cursor-pointer disabled:opacity-50">
+              {submitting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
+              {submitting ? 'Saving...' : 'Save Changes'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+function DeleteProjectModal({
+  project,
+  onDeleted,
+  onClose,
+}: {
+  project: Project;
+  onDeleted: () => void;
+  onClose: () => void;
+}) {
+  const [deleting, setDeleting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleDelete = async () => {
+    setDeleting(true);
+    setError(null);
+    try {
+      await deleteProject(project.id);
+      onDeleted();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to delete project.');
+      setDeleting(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4 backdrop-blur-xs">
+      <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl border border-slate-200 space-y-4">
+        <div className="flex items-start gap-3">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-rose-50 text-rose-600">
+            <Trash2 className="h-5 w-5" />
+          </div>
+          <div>
+            <h3 className="text-base font-bold text-slate-900">Delete Project Program</h3>
+            <p className="text-xs text-slate-500 mt-0.5">
+              Are you sure you want to delete <span className="font-bold text-slate-800">{project.title}</span>?
+            </p>
+          </div>
+        </div>
+
+        {project.assigned.length > 0 && (
+          <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">
+            <p className="font-semibold">Note:</p>
+            <p>{project.assigned.length} candidate(s) currently assigned to this project will be unassigned automatically.</p>
+          </div>
+        )}
+
+        {error && (
+          <p className="text-xs font-medium text-rose-700 bg-rose-50 border border-rose-200 rounded-xl p-3">{error}</p>
+        )}
+
+        <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+          <button type="button" onClick={onClose} disabled={deleting} className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 cursor-pointer">
+            Cancel
+          </button>
+          <button type="button" onClick={handleDelete} disabled={deleting} className="inline-flex items-center gap-1.5 rounded-xl bg-rose-600 px-4 py-2 text-xs font-semibold text-white shadow-sm hover:bg-rose-500 cursor-pointer disabled:opacity-50">
+            {deleting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+            {deleting ? 'Deleting...' : 'Delete Project'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function AdminProjectsPage() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [managingId, setManagingId] = useState<string | null>(null);
+  const [editingProject, setEditingProject] = useState<Project | null>(null);
+  const [deletingProject, setDeletingProject] = useState<Project | null>(null);
 
   const refresh = () => {
     fetchProjects()
@@ -407,7 +706,27 @@ export default function AdminProjectsPage() {
             <div key={p.id} className="rounded-2xl border border-slate-200/90 bg-white p-6 shadow-xs space-y-4">
               <div className="flex items-center justify-between">
                 <span className="rounded bg-purple-50 border border-purple-200 px-2.5 py-0.5 text-[10px] font-bold text-purple-700">{p.track}</span>
-                <span className="text-xs font-semibold text-slate-500">{p.assigned.length} / {p.quota} Filled</span>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-semibold text-slate-500">{p.assigned.length} / {p.quota} Filled</span>
+                  <div className="flex items-center border-l border-slate-200 pl-2 gap-1">
+                    <button
+                      type="button"
+                      onClick={() => setEditingProject(p)}
+                      className="rounded-lg p-1 text-slate-400 hover:text-purple-600 hover:bg-purple-50 transition-colors cursor-pointer"
+                      title="Edit project"
+                    >
+                      <Pencil className="h-3.5 w-3.5" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setDeletingProject(p)}
+                      className="rounded-lg p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
+                      title="Delete project"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                </div>
               </div>
 
               <div>
@@ -456,6 +775,28 @@ export default function AdminProjectsPage() {
             <Briefcase className="h-6 w-6 mx-auto mb-2 text-slate-300" />
             No projects yet — create one to get started.
           </div>
+        )}
+
+        {editingProject && (
+          <EditProjectModal
+            project={editingProject}
+            onUpdated={() => {
+              setEditingProject(null);
+              refresh();
+            }}
+            onClose={() => setEditingProject(null)}
+          />
+        )}
+
+        {deletingProject && (
+          <DeleteProjectModal
+            project={deletingProject}
+            onDeleted={() => {
+              setDeletingProject(null);
+              refresh();
+            }}
+            onClose={() => setDeletingProject(null)}
+          />
         )}
       </main>
     </div>

@@ -83,7 +83,7 @@ function AdminApplicationsContent() {
       return;
     }
     if (newStatus === 'approved') {
-      notifyApplicationApproved(applicant.email, applicant.name);
+      notifyApplicationApproved(applicant.email, applicant.name, result.joinee_id || applicant.joinee_id, applicant.role);
     }
     setApplications((prev) =>
       prev.map((a) =>
