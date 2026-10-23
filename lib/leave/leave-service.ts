@@ -8,52 +8,7 @@ const LEAVE_STORAGE_KEY = 'cep_leave_requests';
 /** Programme policy: approved leave days each volunteer may take in total. */
 export const LEAVE_ALLOWANCE_DAYS = 6;
 
-const SEED_LEAVE_REQUESTS: LeaveRequest[] = [
-  {
-    id: 'leave-seed-001',
-    applicant_id: 'demo-intern-uuid-001',
-    applicant_name: 'Aarav Patel',
-    applicant_email: 'intern@ngo.org',
-    applicant_role: 'intern',
-    leave_type: 'Academic / Exams',
-    start_date: '2026-09-22',
-    end_date: '2026-09-24',
-    days_count: 3,
-    reason: 'Mid-term semester practical exams and project submission at university.',
-    status: 'pending',
-    created_at: new Date(Date.now() - 1000 * 60 * 60 * 6).toISOString(), // 6 hours ago
-  },
-  {
-    id: 'leave-seed-002',
-    applicant_id: 'demo-intern-uuid-001',
-    applicant_name: 'Aarav Patel',
-    applicant_email: 'intern@ngo.org',
-    applicant_role: 'intern',
-    leave_type: 'Sick / Medical',
-    start_date: '2026-08-20',
-    end_date: '2026-08-21',
-    days_count: 2,
-    reason: 'Viral fever and doctor consultation.',
-    status: 'approved',
-    created_at: new Date(Date.now() - 1000 * 60 * 60 * 24 * 30).toISOString(),
-    reviewed_at: new Date(Date.now() - 1000 * 60 * 60 * 24 * 29).toISOString(),
-    admin_comment: 'Approved. Take rest and recover well.',
-  },
-  {
-    id: 'leave-seed-003',
-    applicant_id: 'demo-intern-uuid-002',
-    applicant_name: 'Meera Joshi',
-    applicant_email: 'meera.intern@ngo.org',
-    applicant_role: 'intern',
-    leave_type: 'Personal / Family Emergency',
-    start_date: '2026-09-25',
-    end_date: '2026-09-26',
-    days_count: 2,
-    reason: 'Family wedding out of town.',
-    status: 'pending',
-    created_at: new Date(Date.now() - 1000 * 60 * 60 * 12).toISOString(),
-  },
-];
+const SEED_LEAVE_REQUESTS: LeaveRequest[] = [];
 
 type LeaveRow = Omit<LeaveRequest, 'reviewed_at' | 'admin_comment'> & {
   reviewed_at: string | null;

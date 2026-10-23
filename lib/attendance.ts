@@ -18,136 +18,87 @@ export interface AttendanceRow {
   verified: boolean;
 }
 
-const LOCAL_KEY = 'cep_attendance_records';
+export interface BulkVerifyResult {
+  successfulIds: string[];
+  failed: Array<{ id: string; error: string }>;
+}
 
-const INITIAL_DEMO_RECORDS: AttendanceRow[] = [
-  {
-    id: 'att-1',
-    student_id: 'demo-student-uuid-001',
-    student_name: 'Rahul Sharma',
-    student_email: 'student@ngo.org',
-    role: 'student',
-    check_in_at: new Date(Date.now() - 1000 * 60 * 60 * 4).toISOString(),
-    check_out_at: new Date(Date.now() - 1000 * 60 * 60 * 1).toISOString(),
-    in_latitude: 28.6141,
-    in_longitude: 77.2092,
-    in_accuracy: 12,
-    out_latitude: 28.6140,
-    out_longitude: 77.2091,
-    out_accuracy: 10,
-    verified: true,
-  },
-  {
-    id: 'att-2',
-    student_id: 'demo-intern-uuid-001',
-    student_name: 'Aarav Patel',
-    student_email: 'intern@ngo.org',
-    role: 'intern',
-    check_in_at: new Date(Date.now() - 1000 * 60 * 60 * 5).toISOString(),
-    check_out_at: new Date(Date.now() - 1000 * 60 * 60 * 1.5).toISOString(),
-    in_latitude: 28.6138,
-    in_longitude: 77.2089,
-    in_accuracy: 15,
-    out_latitude: 28.6139,
-    out_longitude: 77.2090,
-    out_accuracy: 14,
-    verified: true,
-  },
-  {
-    id: 'att-3',
-    student_id: 'demo-student-2',
-    student_name: 'Ananya Verma',
-    student_email: 'ananya@bits.edu',
-    role: 'student',
-    check_in_at: new Date(Date.now() - 1000 * 60 * 60 * 6).toISOString(),
-    check_out_at: new Date(Date.now() - 1000 * 60 * 60 * 2).toISOString(),
-    in_latitude: 28.6139,
-    in_longitude: 77.2093,
-    in_accuracy: 8,
-    out_latitude: 28.6139,
-    out_longitude: 77.2093,
-    out_accuracy: 9,
-    verified: true,
-  },
-  {
-    id: 'att-4',
-    student_id: 'demo-intern-3',
-    student_name: 'Sneha Kulkarni',
-    student_email: 'sneha@coep.ac.in',
-    role: 'intern',
-    check_in_at: new Date(Date.now() - 1000 * 60 * 60 * 7).toISOString(),
-    check_out_at: new Date(Date.now() - 1000 * 60 * 60 * 3).toISOString(),
-    in_latitude: 28.6144,
-    in_longitude: 77.2094,
-    in_accuracy: 18,
-    out_latitude: 28.6143,
-    out_longitude: 77.2095,
-    out_accuracy: 16,
-    verified: true,
-  },
-  {
-    id: 'att-5',
-    student_id: 'demo-student-4',
-    student_name: 'Vikram Choudhury',
-    student_email: 'vikram@iitd.ac.in',
-    role: 'student',
-    check_in_at: new Date(Date.now() - 1000 * 60 * 60 * 8).toISOString(),
-    check_out_at: new Date(Date.now() - 1000 * 60 * 60 * 4.5).toISOString(),
-    in_latitude: 28.6250,
-    in_longitude: 77.2180,
-    in_accuracy: 25,
-    out_latitude: 28.6252,
-    out_longitude: 77.2182,
-    out_accuracy: 20,
-    verified: false,
-  },
-];
+interface SupabaseProfileJoin {
+  name?: string | null;
+  email?: string | null;
+  role?: 'student' | 'intern' | 'admin' | string | null;
+}
 
-function readLocal(): AttendanceRow[] {
-  try {
-    const raw = localStorage.getItem(LOCAL_KEY);
-    if (!raw) {
-      localStorage.setItem(LOCAL_KEY, JSON.stringify(INITIAL_DEMO_RECORDS));
-      return INITIAL_DEMO_RECORDS;
-    }
-    const parsed = JSON.parse(raw);
-    if (!Array.isArray(parsed) || parsed.length === 0) {
-      localStorage.setItem(LOCAL_KEY, JSON.stringify(INITIAL_DEMO_RECORDS));
-      return INITIAL_DEMO_RECORDS;
-    }
-    // Ensure all items have a role inferred if missing
-    return parsed.map((r: AttendanceRow) => ({
-      ...r,
-      role: r.role || (r.student_email?.includes('intern') || r.student_name?.includes('Sneha') || r.student_name?.includes('Aarav') ? 'intern' : 'student'),
-    }));
-  } catch {
-    return INITIAL_DEMO_RECORDS;
+interface SupabaseAttendanceRecord {
+  id: string;
+  student_id: string;
+  check_in_at: string;
+  check_out_at: string | null;
+  in_latitude: number;
+  in_longitude: number;
+  in_accuracy?: number | null;
+  out_latitude?: number | null;
+  out_longitude?: number | null;
+  out_accuracy?: number | null;
+  verified: boolean;
+  profiles?: SupabaseProfileJoin | null;
+}
+
+function mapAttendanceRow(record: SupabaseAttendanceRecord): AttendanceRow {
+  const profileRole = record.profiles?.role;
+  // Map strictly: only 'intern' becomes 'intern', only 'student' becomes 'student'.
+  // Missing or unknown roles must never be classified as interns.
+  const mappedRole: 'student' | 'intern' | undefined =
+    profileRole === 'intern' ? 'intern' : profileRole === 'student' ? 'student' : undefined;
+
+  return {
+    id: record.id,
+    student_id: record.student_id,
+    student_name: record.profiles?.name || undefined,
+    student_email: record.profiles?.email || undefined,
+    role: mappedRole,
+    check_in_at: record.check_in_at,
+    check_out_at: record.check_out_at,
+    in_latitude: record.in_latitude,
+    in_longitude: record.in_longitude,
+    in_accuracy: record.in_accuracy,
+    out_latitude: record.out_latitude,
+    out_longitude: record.out_longitude,
+    out_accuracy: record.out_accuracy,
+    verified: Boolean(record.verified),
+  };
+}
+
+function assertSupabaseConfigured(operation: string): void {
+  if (!isSupabaseConfigured()) {
+    throw new Error(
+      `Supabase is not configured. ${operation} requires active database credentials (NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY).`
+    );
   }
-}
-
-function writeLocal(rows: AttendanceRow[]) {
-  localStorage.setItem(LOCAL_KEY, JSON.stringify(rows));
-}
-
-function newLocalId(): string {
-  return typeof crypto !== 'undefined' && 'randomUUID' in crypto
-    ? crypto.randomUUID()
-    : `local-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 }
 
 // ---- Display helpers (shared by student/intern/admin pages) ----
 
 export function formatTime(iso: string): string {
-  return new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  if (!iso) return '—';
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return '—';
+  return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 }
 
 export function formatDate(iso: string): string {
-  return new Date(iso).toLocaleDateString([], { month: 'short', day: '2-digit', year: 'numeric' });
+  if (!iso) return '—';
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return '—';
+  return d.toLocaleDateString([], { month: 'short', day: '2-digit', year: 'numeric' });
 }
 
 export function computeHours(row: Pick<AttendanceRow, 'check_in_at' | 'check_out_at'>): string {
   if (!row.check_out_at) return 'In Progress';
-  const ms = new Date(row.check_out_at).getTime() - new Date(row.check_in_at).getTime();
+  const start = new Date(row.check_in_at).getTime();
+  const end = new Date(row.check_out_at).getTime();
+  if (isNaN(start) || isNaN(end)) return '—';
+  const ms = end - start;
   const hours = Math.max(ms, 0) / 3600000;
   return `${hours.toFixed(2)} hrs`;
 }
@@ -160,20 +111,21 @@ export function statusLabel(row: Pick<AttendanceRow, 'check_out_at' | 'verified'
 // ---- Student/intern-facing operations ----
 
 export async function fetchMyAttendance(userId: string): Promise<AttendanceRow[]> {
-  if (isSupabaseConfigured()) {
-    const supabase = createClient();
-    const { data } = await supabase
-      .from('attendance')
-      .select('*')
-      .eq('student_id', userId)
-      .order('check_in_at', { ascending: false })
-      .limit(20);
-    return (data as AttendanceRow[]) || [];
+  assertSupabaseConfigured('Loading attendance history');
+
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from('attendance')
+    .select('*, profiles(name, email, role)')
+    .eq('student_id', userId)
+    .order('check_in_at', { ascending: false })
+    .limit(50);
+
+  if (error) {
+    throw new Error(`Failed to load attendance records: ${error.message}`);
   }
-  return readLocal()
-    .filter((r) => r.student_id === userId)
-    .sort((a, b) => new Date(b.check_in_at).getTime() - new Date(a.check_in_at).getTime())
-    .slice(0, 20);
+
+  return ((data as unknown as SupabaseAttendanceRecord[]) || []).map(mapAttendanceRow);
 }
 
 export async function checkIn(
@@ -183,127 +135,171 @@ export async function checkIn(
   loc: CapturedLocation,
   role?: 'student' | 'intern'
 ): Promise<AttendanceRow> {
-  if (isSupabaseConfigured()) {
-    const supabase = createClient();
-    const { data, error } = await supabase
-      .from('attendance')
-      .insert({
-        student_id: userId,
-        check_in_at: new Date().toISOString(),
-        in_latitude: loc.latitude,
-        in_longitude: loc.longitude,
-        in_accuracy: loc.accuracy,
-      })
-      .select()
-      .single();
-    if (error) throw new Error(error.message);
-    return { ...(data as AttendanceRow), role };
+  assertSupabaseConfigured('Check-in');
+
+  const supabase = createClient();
+  const checkInTimestamp = loc.capturedAt || new Date().toISOString();
+
+  const { data, error } = await supabase
+    .from('attendance')
+    .insert({
+      student_id: userId,
+      check_in_at: checkInTimestamp,
+      in_latitude: loc.latitude,
+      in_longitude: loc.longitude,
+      in_accuracy: loc.accuracy != null ? loc.accuracy : null,
+      verified: false,
+    })
+    .select('*, profiles(name, email, role)')
+    .single();
+
+  if (error) {
+    if (error.code === '42501' || error.message.toLowerCase().includes('check in')) {
+      throw new Error('You already have an active check-in session. Please check out before checking in again.');
+    }
+    throw new Error(`Check-in failed: ${error.message}`);
   }
 
-  const row: AttendanceRow = {
-    id: newLocalId(),
-    student_id: userId,
-    student_name: name,
-    student_email: email,
-    role: role || (email.includes('intern') ? 'intern' : 'student'),
-    check_in_at: new Date().toISOString(),
-    check_out_at: null,
-    in_latitude: loc.latitude,
-    in_longitude: loc.longitude,
-    in_accuracy: loc.accuracy,
-    verified: false,
+  const mapped = mapAttendanceRow(data as unknown as SupabaseAttendanceRecord);
+  return {
+    ...mapped,
+    student_name: mapped.student_name || name,
+    student_email: mapped.student_email || email,
+    role: mapped.role || role,
   };
-  const rows = readLocal();
-  rows.unshift(row);
-  writeLocal(rows);
-  return row;
 }
 
 export async function checkOut(recordId: string, loc: CapturedLocation): Promise<AttendanceRow> {
-  if (isSupabaseConfigured()) {
-    const supabase = createClient();
-    const { data, error } = await supabase
-      .from('attendance')
-      .update({
-        check_out_at: new Date().toISOString(),
-        out_latitude: loc.latitude,
-        out_longitude: loc.longitude,
-        out_accuracy: loc.accuracy,
-      })
-      .eq('id', recordId)
-      .select()
-      .single();
-    if (error) throw new Error(error.message);
-    return data as AttendanceRow;
+  assertSupabaseConfigured('Check-out');
+
+  const supabase = createClient();
+
+  // 1. Verify the record exists and is currently open
+  const { data: existing, error: fetchError } = await supabase
+    .from('attendance')
+    .select('id, check_out_at')
+    .eq('id', recordId)
+    .maybeSingle();
+
+  if (fetchError) {
+    throw new Error(`Failed to check attendance record: ${fetchError.message}`);
+  }
+  if (!existing) {
+    throw new Error('Attendance record not found.');
+  }
+  if (existing.check_out_at) {
+    throw new Error('This attendance session has already been checked out.');
   }
 
-  const rows = readLocal();
-  const idx = rows.findIndex((r) => r.id === recordId);
-  if (idx === -1) throw new Error('Attendance record not found.');
-  rows[idx] = {
-    ...rows[idx],
-    check_out_at: new Date().toISOString(),
-    out_latitude: loc.latitude,
-    out_longitude: loc.longitude,
-    out_accuracy: loc.accuracy,
-  };
-  writeLocal(rows);
-  return rows[idx];
+  // 2. Persist checkout with safe condition to prevent race duplicate checkout
+  const checkOutTimestamp = loc.capturedAt || new Date().toISOString();
+  const { data, error } = await supabase
+    .from('attendance')
+    .update({
+      check_out_at: checkOutTimestamp,
+      out_latitude: loc.latitude,
+      out_longitude: loc.longitude,
+      out_accuracy: loc.accuracy != null ? loc.accuracy : null,
+    })
+    .eq('id', recordId)
+    .is('check_out_at', null)
+    .select('*, profiles(name, email, role)')
+    .single();
+
+  if (error) {
+    throw new Error(`Check-out failed: ${error.message}`);
+  }
+  if (!data) {
+    throw new Error('Could not update attendance record. The session may have already been closed.');
+  }
+
+  return mapAttendanceRow(data as unknown as SupabaseAttendanceRecord);
 }
 
 // ---- Admin-facing operations ----
 
 export async function fetchAllAttendance(): Promise<AttendanceRow[]> {
-  if (isSupabaseConfigured()) {
-    const supabase = createClient();
-    const { data } = await supabase
-      .from('attendance')
-      .select('*, profiles(name, email)')
-      .order('check_in_at', { ascending: false })
-      .limit(100);
-    return ((data as unknown as Array<AttendanceRow & { profiles?: { name: string; email: string } }>) || []).map(
-      (r) => ({ ...r, student_name: r.profiles?.name, student_email: r.profiles?.email })
-    );
+  assertSupabaseConfigured('Loading admin attendance records');
+
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from('attendance')
+    .select('*, profiles(name, email, role)')
+    .order('check_in_at', { ascending: false })
+    .limit(200);
+
+  if (error) {
+    throw new Error(`Failed to fetch attendance records: ${error.message}`);
   }
-  return readLocal().sort((a, b) => new Date(b.check_in_at).getTime() - new Date(a.check_in_at).getTime());
+
+  return ((data as unknown as SupabaseAttendanceRecord[]) || []).map(mapAttendanceRow);
 }
 
 /**
  * Every attendance record checked in at/after `sinceIso`, optionally for one
- * person. Unlike fetchAllAttendance/fetchMyAttendance this is not capped at
- * 100/20 rows, so period aggregates (monthly attendance rate) stay accurate.
+ * person. Used for monthly rate aggregations and period metrics.
  */
 export async function fetchAttendanceSince(sinceIso: string, userId?: string): Promise<AttendanceRow[]> {
-  if (isSupabaseConfigured()) {
-    const supabase = createClient();
-    let query = supabase
-      .from('attendance')
-      .select('*, profiles(name, email)')
-      .gte('check_in_at', sinceIso)
-      .order('check_in_at', { ascending: false })
-      .limit(10000);
-    if (userId) query = query.eq('student_id', userId);
-    const { data } = await query;
-    return ((data as unknown as Array<AttendanceRow & { profiles?: { name: string; email: string } }>) || []).map(
-      (r) => ({ ...r, student_name: r.profiles?.name, student_email: r.profiles?.email })
-    );
+  assertSupabaseConfigured('Loading period attendance records');
+
+  const supabase = createClient();
+  let query = supabase
+    .from('attendance')
+    .select('*, profiles(name, email, role)')
+    .gte('check_in_at', sinceIso)
+    .order('check_in_at', { ascending: false })
+    .limit(2000);
+
+  if (userId) {
+    query = query.eq('student_id', userId);
   }
-  const since = new Date(sinceIso).getTime();
-  return readLocal().filter(
-    (r) => new Date(r.check_in_at).getTime() >= since && (!userId || r.student_id === userId)
-  );
+
+  const { data, error } = await query;
+  if (error) {
+    throw new Error(`Failed to fetch period attendance records: ${error.message}`);
+  }
+
+  return ((data as unknown as SupabaseAttendanceRecord[]) || []).map(mapAttendanceRow);
 }
 
 export async function verifyAttendance(id: string): Promise<void> {
-  if (isSupabaseConfigured()) {
-    const supabase = createClient();
-    await supabase.from('attendance').update({ verified: true }).eq('id', id);
-    return;
+  assertSupabaseConfigured('Verifying attendance');
+
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from('attendance')
+    .update({ verified: true })
+    .eq('id', id)
+    .select('id');
+
+  if (error) {
+    throw new Error(`Verification failed: ${error.message}`);
   }
-  const rows = readLocal();
-  const idx = rows.findIndex((r) => r.id === id);
-  if (idx !== -1) {
-    rows[idx] = { ...rows[idx], verified: true };
-    writeLocal(rows);
+
+  if (!data || data.length === 0) {
+    throw new Error('Verification failed: Attendance record not found or you lack permission to verify it.');
   }
+}
+
+export async function verifyAttendanceBulk(ids: string[]): Promise<BulkVerifyResult> {
+  assertSupabaseConfigured('Bulk attendance verification');
+
+  const result: BulkVerifyResult = {
+    successfulIds: [],
+    failed: [],
+  };
+
+  for (const id of ids) {
+    try {
+      await verifyAttendance(id);
+      result.successfulIds.push(id);
+    } catch (err) {
+      result.failed.push({
+        id,
+        error: err instanceof Error ? err.message : 'Unknown error during verification',
+      });
+    }
+  }
+
+  return result;
 }

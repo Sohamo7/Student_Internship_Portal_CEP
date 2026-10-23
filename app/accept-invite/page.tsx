@@ -3,7 +3,6 @@
 import React, { Suspense, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { createClient, isSupabaseConfigured } from '@/lib/supabase/client';
-import { acceptDemoInvite, readDemoInvites } from '@/lib/admins/admin-service';
 import { AlertCircle, ArrowRight, Loader2, Lock, ShieldCheck, User } from 'lucide-react';
 
 const INPUT =
@@ -14,7 +13,6 @@ type Phase = 'checking' | 'ready' | 'invalid';
 function AcceptInviteContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const demoToken = searchParams.get('demo_token');
   const configured = isSupabaseConfigured();
 
   const [phase, setPhase] = useState<Phase>('checking');
@@ -31,28 +29,18 @@ function AcceptInviteContent() {
     let cancelled = false;
 
     async function init() {
-      // ---- Demo mode ----
       if (!configured) {
-        const invite = readDemoInvites().find((i) => i.token === demoToken);
         if (cancelled) return;
-        if (!invite) {
-          setProblem('This invite link is invalid or has already been used.');
-          setPhase('invalid');
-          return;
-        }
-        setName(invite.name);
-        setEmail(invite.email);
-        setPhase('ready');
+        setProblem('Supabase authentication is not configured. Admin invitations cannot be verified.');
+        setPhase('invalid');
         return;
       }
 
-      // ---- Supabase mode ----
       const supabase = createClient();
       const hash = new URLSearchParams(window.location.hash.replace(/^#/, ''));
       const hashError = hash.get('error_description');
 
-      // getSession() waits for the client's own URL handling to finish, so
-      // check it first; only fall back to manual handling if it found nothing.
+      // getSession() checks for existing or exchanged session
       let { data: { session } } = await supabase.auth.getSession();
 
       if (!session) {
@@ -82,13 +70,13 @@ function AcceptInviteContent() {
         return;
       }
 
-      // Anyone with a session could open this page, so make sure it belongs to
-      // an admin invite that is still waiting to be accepted.
+      // Verify the user is an invited admin waiting to accept
       const { data: invited } = await supabase
         .from('profiles')
-        .select('role, invited_at, invite_accepted_at')
+        .select('name, email, role, invited_at, invite_accepted_at')
         .eq('id', session.user.id)
         .maybeSingle();
+
       if (cancelled) return;
       if (!invited || invited.role !== 'admin' || !invited.invited_at || invited.invite_accepted_at) {
         setProblem(
@@ -97,50 +85,52 @@ function AcceptInviteContent() {
         setPhase('invalid');
         return;
       }
-      // Don't leave tokens sitting in the address bar.
-      window.history.replaceState(null, '', window.location.pathname);
-      setEmail(session.user.email || '');
-      setName((session.user.user_metadata?.name as string) || '');
+
+      setName(invited.name || '');
+      setEmail(invited.email || session.user.email || '');
       setPhase('ready');
     }
 
     init();
+
     return () => {
       cancelled = true;
     };
-  }, [configured, demoToken, searchParams]);
+  }, [configured, searchParams]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
-    if (!name.trim()) return setError('Please enter your name.');
-    if (password.length < 8) return setError('Password must be at least 8 characters long.');
-    if (password !== confirm) return setError('Passwords do not match.');
+
+    if (password.length < 8) {
+      setError('Password must be at least 8 characters long.');
+      return;
+    }
+    if (password !== confirm) {
+      setError('Passwords do not match.');
+      return;
+    }
 
     setSaving(true);
     try {
-      if (!configured) {
-        const result = acceptDemoInvite(demoToken || '', name, password);
-        if (!result.success) throw new Error(result.error);
-      } else {
-        const supabase = createClient();
-        const { data: userData, error: pwErr } = await supabase.auth.updateUser({
-          password,
-          data: { name: name.trim() },
-        });
-        if (pwErr) throw new Error(pwErr.message);
+      const supabase = createClient();
+      const { data: userData, error: pwErr } = await supabase.auth.updateUser({
+        password,
+        data: { name: name.trim() },
+      });
+      if (pwErr) throw new Error(pwErr.message);
 
-        // Mark the invite as accepted (a user may update their own profile row).
-        const userId = userData.user?.id;
-        if (userId) {
-          const { error: profileErr } = await supabase
-            .from('profiles')
-            .update({ name: name.trim(), invite_accepted_at: new Date().toISOString() })
-            .eq('id', userId);
-          if (profileErr) throw new Error(profileErr.message);
-        }
+      // Mark the invite as accepted
+      const userId = userData.user?.id;
+      if (userId) {
+        const { error: profileErr } = await supabase
+          .from('profiles')
+          .update({ name: name.trim(), invite_accepted_at: new Date().toISOString() })
+          .eq('id', userId);
+        if (profileErr) throw new Error(profileErr.message);
       }
-      // Route the new admin to sign in with their password.
+
+      // Route the new admin to sign in
       router.push('/login');
     } catch (err) {
       setSaving(false);
@@ -238,7 +228,14 @@ function AcceptInviteContent() {
               disabled={saving}
               className="flex w-full items-center justify-center gap-2 rounded-xl bg-purple-600 px-4 py-3 text-sm font-semibold text-white shadow-sm hover:bg-purple-500 disabled:opacity-50 cursor-pointer"
             >
-              {saving ? <Loader2 className="h-5 w-5 animate-spin" /> : <><span>Activate account</span><ArrowRight className="h-4 w-4" /></>}
+              {saving ? (
+                <Loader2 className="h-5 w-5 animate-spin" />
+              ) : (
+                <>
+                  <span>Activate account</span>
+                  <ArrowRight className="h-4 w-4" />
+                </>
+              )}
             </button>
           </form>
         )}

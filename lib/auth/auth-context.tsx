@@ -34,13 +34,14 @@ interface AuthContextType {
     password: string,
     application?: ApplicationDetails
   ) => Promise<{ success: boolean; error?: string }>;
-  switchRole: (targetRole: UserRole) => void;
+  switchRole?: (targetRole: UserRole) => void;
   logout: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 function setRoleCookie(role: string | null, id: string | null) {
+  if (typeof document === 'undefined') return;
   if (role && id) {
     document.cookie = `cep_user_role=${role}; path=/; max-age=604800; SameSite=Lax`;
     document.cookie = `cep_user_id=${id}; path=/; max-age=604800; SameSite=Lax`;
@@ -49,48 +50,6 @@ function setRoleCookie(role: string | null, id: string | null) {
     document.cookie = 'cep_user_id=; path=/; max-age=0; SameSite=Lax';
   }
 }
-
-const DEMO_ACCOUNTS: Record<string, { password: string; profile: UserProfile }> = {
-  'student@ngo.org': {
-    password: 'password123',
-    profile: {
-      id: 'demo-student-uuid-001',
-      name: 'Rahul Sharma',
-      email: 'student@ngo.org',
-      role: 'student',
-      created_at: new Date().toISOString(),
-      application_status: 'approved', // demo account is already an approved intern
-      joinee_id: 'STU-20261001-001',
-      joined_at: '2026-10-01T09:00:00.000Z',
-    },
-  },
-  'intern@ngo.org': {
-    password: 'password123',
-    profile: {
-      id: 'demo-intern-uuid-001',
-      name: 'Aarav Patel',
-      email: 'intern@ngo.org',
-      role: 'intern',
-      created_at: new Date().toISOString(),
-      application_status: 'approved',
-      joinee_id: 'INT-20261001-001',
-      joined_at: '2026-10-01T09:30:00.000Z',
-    },
-  },
-  'admin@ngo.org': {
-    password: 'password123',
-    profile: {
-      id: 'demo-admin-uuid-001',
-      name: 'Priya Patel (Director)',
-      email: 'admin@ngo.org',
-      role: 'admin',
-      created_at: new Date().toISOString(),
-      application_status: 'approved',
-      joinee_id: 'ADM-20260915-001',
-      joined_at: '2026-09-15T09:00:00.000Z',
-    },
-  },
-};
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<{ id: string; email: string } | null>(null);
@@ -102,179 +61,174 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [, startTransition] = useTransition();
 
   useEffect(() => {
+    let isMounted = true;
+
     async function loadSession() {
       try {
-        if (isConfigured) {
-          const supabase = createClient();
-          const { data: { session } } = await supabase.auth.getSession();
-          if (session?.user) {
-            const { data: profileData } = await supabase
+        if (!isConfigured) {
+          // No silent fallback to demo accounts or fake sessions
+          if (isMounted) {
+            setUser(null);
+            setProfile(null);
+            setRole(null);
+            setRoleCookie(null, null);
+            setIsLoading(false);
+          }
+          return;
+        }
+
+        const supabase = createClient();
+        const { data: { session } } = await supabase.auth.getSession();
+
+        if (session?.user && isMounted) {
+          let { data: profileData, error: profileErr } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', session.user.id)
+            .maybeSingle();
+
+          // If freshly registered and profile trigger is processing, retry once
+          if (!profileData && !profileErr) {
+            await new Promise((resolve) => setTimeout(resolve, 600));
+            if (!isMounted) return;
+            const retry = await supabase
               .from('profiles')
               .select('*')
               .eq('id', session.user.id)
-              .single();
+              .maybeSingle();
+            profileData = retry.data;
+          }
 
-            // A session alone is not enough: a volunteer can get one (e.g. by
-            // clicking the sign-up confirmation email) before an admin has
-            // approved them. Apply the same application gate as login().
-            const restored = profileData as UserProfile | null;
-            if (restored && !getApplicationGateError(restored.application_status)) {
-              setUser({ id: session.user.id, email: session.user.email || '' });
+          const restored = profileData as UserProfile | null;
+
+          if (restored) {
+            // Apply login gate: pending/rejected volunteers cannot hold an active session
+            const gateError = getApplicationGateError(restored.application_status);
+            if (gateError) {
+              await supabase.auth.signOut();
+              if (isMounted) {
+                setUser(null);
+                setProfile(null);
+                setRole(null);
+                setRoleCookie(null, null);
+              }
+            } else if (isMounted) {
+              setUser({ id: session.user.id, email: session.user.email || restored.email });
               setProfile(restored);
               setRole(restored.role);
               setRoleCookie(restored.role, session.user.id);
-            } else {
-              if (restored) await supabase.auth.signOut();
-              setRoleCookie(null, null);
             }
           } else {
-            // No valid session (expired / signed out elsewhere): don't leave a
-            // stale role cookie behind that makes route guards think we're signed in.
-            setRoleCookie(null, null);
+            // User authenticated in auth.users but has no profile row
+            if (isMounted) {
+              setUser(null);
+              setProfile(null);
+              setRole(null);
+              setRoleCookie(null, null);
+            }
           }
-        } else {
-          const savedSession = localStorage.getItem('cep_demo_session');
-          if (savedSession) {
-            const parsed = JSON.parse(savedSession) as UserProfile;
-            setUser({ id: parsed.id, email: parsed.email });
-            setProfile(parsed);
-            setRole(parsed.role);
-            setRoleCookie(parsed.role, parsed.id);
-          } else {
-            // Default demo session: student
-            const defaultStudent = DEMO_ACCOUNTS['student@ngo.org'].profile;
-            setUser({ id: defaultStudent.id, email: defaultStudent.email });
-            setProfile(defaultStudent);
-            setRole('student');
-            setRoleCookie('student', defaultStudent.id);
-            localStorage.setItem('cep_demo_session', JSON.stringify(defaultStudent));
-          }
+        } else if (isMounted) {
+          setUser(null);
+          setProfile(null);
+          setRole(null);
+          setRoleCookie(null, null);
         }
       } catch (err) {
         console.error('Error restoring session:', err);
+        if (isMounted) {
+          setUser(null);
+          setProfile(null);
+          setRole(null);
+          setRoleCookie(null, null);
+        }
       } finally {
-        setIsLoading(false);
+        if (isMounted) {
+          setIsLoading(false);
+        }
       }
     }
 
     loadSession();
+
+    return () => {
+      isMounted = false;
+    };
   }, [isConfigured]);
 
-  const switchRole = (targetRole: UserRole) => {
-    if (targetRole === 'admin') {
-      const adminProfile = DEMO_ACCOUNTS['admin@ngo.org'].profile;
-      setUser({ id: adminProfile.id, email: adminProfile.email });
-      setProfile(adminProfile);
-      setRole('admin');
-      setRoleCookie('admin', adminProfile.id);
-      localStorage.setItem('cep_demo_session', JSON.stringify(adminProfile));
-      router.push('/admin/dashboard');
-    } else if (targetRole === 'intern') {
-      const internProfile = DEMO_ACCOUNTS['intern@ngo.org'].profile;
-      setUser({ id: internProfile.id, email: internProfile.email });
-      setProfile(internProfile);
-      setRole('intern');
-      setRoleCookie('intern', internProfile.id);
-      localStorage.setItem('cep_demo_session', JSON.stringify(internProfile));
-      router.push('/intern/dashboard');
-    } else {
-      const studentProfile = DEMO_ACCOUNTS['student@ngo.org'].profile;
-      setUser({ id: studentProfile.id, email: studentProfile.email });
-      setProfile(studentProfile);
-      setRole('student');
-      setRoleCookie('student', studentProfile.id);
-      localStorage.setItem('cep_demo_session', JSON.stringify(studentProfile));
-      router.push('/student/dashboard');
-    }
-  };
-
-  const login = async (email: string, password: string): Promise<{ success: boolean; role?: UserRole; error?: string }> => {
+  const login = async (
+    email: string,
+    password: string
+  ): Promise<{ success: boolean; role?: UserRole; error?: string }> => {
     setIsLoading(true);
     try {
-      if (isConfigured) {
-        const supabase = createClient();
-        const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-        if (error) {
-          setIsLoading(false);
-          return { success: false, error: error.message };
-        }
-
-        if (data.user) {
-          const { data: profileData, error: profileErr } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', data.user.id)
-            .single();
-
-          if (profileErr || !profileData) {
-            setIsLoading(false);
-            return { success: false, error: 'User profile not found. Ensure schema.sql is executed.' };
-          }
-
-          const userProfile = profileData as UserProfile;
-
-          // Gate portal access: new volunteers can't sign in until an NGO admin
-          // approves their internship application. Missing status (legacy/admin
-          // rows) is treated as approved.
-          const gateError = getApplicationGateError(userProfile.application_status);
-          if (gateError) {
-            await supabase.auth.signOut();
-            setIsLoading(false);
-            return { success: false, error: gateError };
-          }
-
-          setUser({ id: data.user.id, email: data.user.email || '' });
-          setProfile(userProfile);
-          setRole(userProfile.role);
-          setRoleCookie(userProfile.role, data.user.id);
-          setIsLoading(false);
-          return { success: true, role: userProfile.role };
-        }
-      } else {
-        const normalizedEmail = email.trim().toLowerCase();
-        const storedUsers = JSON.parse(localStorage.getItem('cep_registered_users') || '{}');
-        const candidate = DEMO_ACCOUNTS[normalizedEmail] || storedUsers[normalizedEmail];
-
-        if (candidate) {
-          if (candidate.password === password) {
-            const loggedInProfile: UserProfile = candidate.profile;
-
-            // Same application-gate as the Supabase path: pending/rejected
-            // volunteers cannot access the portal yet.
-            const gateError = getApplicationGateError(loggedInProfile.application_status);
-            if (gateError) {
-              setIsLoading(false);
-              return { success: false, error: gateError };
-            }
-
-            setUser({ id: loggedInProfile.id, email: loggedInProfile.email });
-            setProfile(loggedInProfile);
-            setRole(loggedInProfile.role);
-            setRoleCookie(loggedInProfile.role, loggedInProfile.id);
-            localStorage.setItem('cep_demo_session', JSON.stringify(loggedInProfile));
-            setIsLoading(false);
-            return { success: true, role: loggedInProfile.role };
-          } else {
-            setIsLoading(false);
-            return { success: false, error: 'Invalid password.' };
-          }
-        } else {
-          setIsLoading(false);
-          return { success: false, error: 'No account found with this email. Try registering or use demo credentials.' };
-        }
+      if (!isConfigured) {
+        setIsLoading(false);
+        return {
+          success: false,
+          error: 'Supabase authentication is not configured. Please configure NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY.',
+        };
       }
 
-      return { success: false, error: 'Unexpected authentication state' };
+      const supabase = createClient();
+      const normalizedEmail = email.trim().toLowerCase();
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: normalizedEmail,
+        password,
+      });
+
+      if (error) {
+        setIsLoading(false);
+        return { success: false, error: error.message };
+      }
+
+      if (!data.user) {
+        setIsLoading(false);
+        return { success: false, error: 'Sign-in failed. No user record returned.' };
+      }
+
+      let { data: profileData, error: profileErr } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', data.user.id)
+        .maybeSingle();
+
+      if (!profileData && !profileErr) {
+        await new Promise((resolve) => setTimeout(resolve, 600));
+        const retry = await supabase.from('profiles').select('*').eq('id', data.user.id).maybeSingle();
+        profileData = retry.data;
+        profileErr = retry.error;
+      }
+
+      if (profileErr || !profileData) {
+        setIsLoading(false);
+        return {
+          success: false,
+          error: 'User profile not found. Please ensure database schema has been executed.',
+        };
+      }
+
+      const userProfile = profileData as UserProfile;
+
+      // Gate portal access: volunteers cannot sign in until an NGO admin approves their application
+      const gateError = getApplicationGateError(userProfile.application_status);
+      if (gateError) {
+        await supabase.auth.signOut();
+        setIsLoading(false);
+        return { success: false, error: gateError };
+      }
+
+      setUser({ id: data.user.id, email: data.user.email || userProfile.email });
+      setProfile(userProfile);
+      setRole(userProfile.role);
+      setRoleCookie(userProfile.role, data.user.id);
+      setIsLoading(false);
+      return { success: true, role: userProfile.role };
     } catch (err: unknown) {
       setIsLoading(false);
       return { success: false, error: (err as Error).message || 'Authentication failed' };
     }
   };
 
-  // Submits a new volunteer's internship application. This intentionally does
-  // NOT log the applicant in or grant portal access — application_status
-  // starts as 'pending' and only an NGO admin approving it (see
-  // /admin/applications) unlocks the login form for this account.
   const register = async (
     name: string,
     email: string,
@@ -283,7 +237,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   ): Promise<{ success: boolean; error?: string }> => {
     setIsLoading(true);
     try {
-      // Enforce the admin-configured intake window here (not just in the UI).
+      if (!isConfigured) {
+        setIsLoading(false);
+        return {
+          success: false,
+          error: 'Supabase authentication is not configured. Applications cannot be saved.',
+        };
+      }
+
+      // Enforce the admin-configured intake window
       const { settings } = await loadSettings();
       if (!getIntakeStatus(settings.intake).open) {
         setIsLoading(false);
@@ -291,85 +253,51 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       const normalizedEmail = email.trim().toLowerCase();
-      if (isConfigured) {
-        const supabase = createClient();
-        const selectedRole = application?.role || 'student';
-        const { data, error } = await supabase.auth.signUp({
-          email: normalizedEmail,
-          password,
-          options: {
-            data: {
-              name: name.trim(),
-              role: selectedRole,
-              phone: application?.phone?.trim() || null,
-              college: application?.college?.trim() || null,
-              degree: application?.degree?.trim() || null,
-              skills: application?.skills?.trim() || null,
-              program_interest: application?.program_interest || null,
-              statement_of_purpose: application?.statement_of_purpose?.trim() || null,
-              resume_path: application?.resume_path || null,
-              resume_name: application?.resume_name || null,
-            },
+      const supabase = createClient();
+      const selectedRole = application?.role || 'student';
+
+      const { data, error } = await supabase.auth.signUp({
+        email: normalizedEmail,
+        password,
+        options: {
+          data: {
+            name: name.trim(),
+            role: selectedRole,
+            phone: application?.phone?.trim() || null,
+            college: application?.college?.trim() || null,
+            degree: application?.degree?.trim() || null,
+            skills: application?.skills?.trim() || null,
+            program_interest: application?.program_interest || null,
+            statement_of_purpose: application?.statement_of_purpose?.trim() || null,
+            resume_path: application?.resume_path || null,
+            resume_name: application?.resume_name || null,
           },
-        });
+        },
+      });
 
-        if (error) {
-          setIsLoading(false);
-          return { success: false, error: error.message };
-        }
-
-        // Supabase may return an active session if email confirmation is
-        // disabled on the project. Sign back out immediately so the applicant
-        // cannot enter the portal before an admin approves them — they stay on
-        // the "application submitted" screen and use /login once approved.
-        if (data.session) {
-          await supabase.auth.signOut();
-        }
-
+      if (error) {
         setIsLoading(false);
-        return { success: true };
-      } else {
-        const storedUsers = JSON.parse(localStorage.getItem('cep_registered_users') || '{}');
-        if (DEMO_ACCOUNTS[normalizedEmail] || storedUsers[normalizedEmail]) {
-          setIsLoading(false);
-          return { success: false, error: 'An account with this email already exists.' };
-        }
-
-        const selectedRole = application?.role || 'student';
-        const newId = `${selectedRole}-${Date.now()}`;
-        const newProfile: UserProfile = {
-          id: newId,
-          name: name.trim(),
-          email: normalizedEmail,
-          role: selectedRole,
-          created_at: new Date().toISOString(),
-          phone: application?.phone?.trim(),
-          college: application?.college?.trim(),
-          degree: application?.degree?.trim(),
-          skills: application?.skills?.trim(),
-          program_interest: application?.program_interest,
-          statement_of_purpose: application?.statement_of_purpose?.trim(),
-          resume_path: application?.resume_path,
-          resume_name: application?.resume_name,
-          application_status: 'pending',
-        };
-
-        storedUsers[normalizedEmail] = {
-          password,
-          profile: newProfile,
-        };
-        localStorage.setItem('cep_registered_users', JSON.stringify(storedUsers));
-
-        // No session/cookie is set here — the applicant is not logged in.
-        // They'll be able to sign in from the "Sign In" tab once an NGO admin
-        // approves the application from /admin/applications.
-        setIsLoading(false);
-        return { success: true };
+        return { success: false, error: error.message };
       }
+
+      // Supabase may return an active session if email confirmation is disabled.
+      // Sign out immediately so applicants remain pending until approved by an admin.
+      if (data.session) {
+        await supabase.auth.signOut();
+      }
+
+      setIsLoading(false);
+      return { success: true };
     } catch (err: unknown) {
       setIsLoading(false);
       return { success: false, error: (err as Error).message || 'Registration failed' };
     }
+  };
+
+  // Disabled in production: impersonation/role-switching without authentication is disallowed
+  const switchRole = (_targetRole: UserRole) => {
+    void _targetRole;
+    console.warn('Role switching / impersonation without authentication is disabled in production.');
   };
 
   const logout = async () => {
@@ -378,8 +306,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (isConfigured) {
         const supabase = createClient();
         await supabase.auth.signOut();
-      } else {
-        localStorage.removeItem('cep_demo_session');
       }
       setRoleCookie(null, null);
       setUser(null);

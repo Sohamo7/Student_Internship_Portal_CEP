@@ -44,7 +44,7 @@ export const DEFAULT_SETTINGS: OrgSettings = {
   organization: {
     name: 'Navodaya Social Development Trust',
     registration_number: 'NGO-MH-2018-99201',
-    contact_email: 'admin@ngo.org',
+    contact_email: 'contact@trust.org',
     phone: '',
     website: '',
     address: '',

@@ -48,7 +48,7 @@ export function Sidebar({ role }: SidebarProps) {
   const [openMenus, setOpenMenus] = useState<Record<string, boolean>>(() => {
     const initial: Record<string, boolean> = {
       Applications: pathname?.startsWith('/admin/applications') ?? false,
-      Students: pathname?.startsWith('/admin/students') ?? false,
+      Directory: pathname?.startsWith('/admin/students') ?? false,
       Attendance: pathname?.startsWith('/admin/attendance') ?? false,
       'Work Logs': pathname?.startsWith('/admin/work-logs') ?? false,
     };
@@ -95,7 +95,7 @@ export function Sidebar({ role }: SidebarProps) {
     { label: 'Leave Requests', href: '/admin/leave', icon: CalendarOff },
     { label: 'Issue Reports', href: '/admin/issues', icon: AlertTriangle },
     {
-      label: 'Students',
+      label: 'Directory',
       icon: Users,
       subItems: [
         { label: 'Student Directory', href: '/admin/students?role=student', tag: 'student', icon: GraduationCap },
