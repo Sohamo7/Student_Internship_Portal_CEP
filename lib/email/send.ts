@@ -24,21 +24,42 @@ export function escapeHtml(value: string): string {
 function cleanSubject(value: string): string {
   return value.replace(/[\r\n]+/g, ' ').trim().slice(0, 200);
 }
+export interface EmailAttachment {
+  filename: string;
+  path?: string;
+  content?: string | Buffer;
+}
+
 interface SendResult {
   sent: boolean;
   error?: string;
 }
 
-async function sendEmail(to: string, subject: string, html: string): Promise<SendResult> {
+async function sendEmail(
+  to: string,
+  subject: string,
+  html: string,
+  attachments?: EmailAttachment[]
+): Promise<SendResult> {
   if (!isResendConfigured()) {
     // Safe no-op fallback: log instead of sending, so the app works fully
     // in demo/dev environments without a Resend account.
-    console.log(`[email:not-configured] Would send "${subject}" to ${to}`);
+    console.log(
+      `[email:not-configured] Would send "${subject}" to ${to}${
+        attachments && attachments.length > 0 ? ` with ${attachments.length} attachment(s)` : ''
+      }`
+    );
     return { sent: false };
   }
   try {
     const resend = new Resend(process.env.RESEND_API_KEY);
-    const { error } = await resend.emails.send({ from: FROM_EMAIL, to, subject: cleanSubject(subject), html });
+    const { error } = await resend.emails.send({
+      from: FROM_EMAIL,
+      to,
+      subject: cleanSubject(subject),
+      html,
+      ...(attachments && attachments.length > 0 ? { attachments } : {}),
+    });
     if (error) {
       console.error('[email:resend-error]', error);
       return { sent: false, error: error.message };
@@ -103,14 +124,34 @@ export function renderProjectAssignedHtml(
   name: string,
   projectTitle: string,
   supervisorName: string,
-  supervisorEmail: string
+  supervisorEmail: string,
+  attachmentName?: string | null,
+  attachmentUrl?: string | null
 ): string {
+  const attachmentSection =
+    attachmentName && attachmentUrl
+      ? `
+      <div style="margin: 20px 0; padding: 16px; border: 1px solid #c7d2fe; border-radius: 12px; background: #eef2ff;">
+        <div style="font-size: 13px; font-weight: 700; color: #4338ca; margin-bottom: 6px;">
+          📎 Project Document Included
+        </div>
+        <div style="font-size: 13px; color: #1e293b; margin-bottom: 12px; word-break: break-all;">
+          <strong>${escapeHtml(attachmentName)}</strong>
+        </div>
+        <a href="${escapeHtml(attachmentUrl)}" target="_blank" style="display:inline-block; font-size: 13px; font-weight: 600; color: #ffffff; background: #4f46e5; text-decoration: none; padding: 8px 16px; border-radius: 8px;">
+          Download Project Attachment &rarr;
+        </a>
+      </div>
+    `
+      : '';
+
   return wrapper(`
     <h2 style="font-size: 18px; margin: 0 0 12px;">New Project Assigned, ${escapeHtml(name)}!</h2>
     <p style="font-size: 14px; line-height: 1.6;">
       You've been assigned to <strong>${escapeHtml(projectTitle)}</strong>. Sign in to the portal to see the full project
       scope, milestones, and timeline.
     </p>
+    ${attachmentSection}
     <p style="font-size: 14px; line-height: 1.6;">
       Your supervisor for this project is <strong>${escapeHtml(supervisorName)}</strong>
       (<a href="mailto:${escapeHtml(supervisorEmail)}" style="color:#6366f1;">${escapeHtml(supervisorEmail)}</a>) — reach out to them
@@ -124,12 +165,27 @@ export async function sendProjectAssignedEmail(
   name: string,
   projectTitle: string,
   supervisorName: string,
-  supervisorEmail: string
+  supervisorEmail: string,
+  attachmentName?: string | null,
+  attachmentUrl?: string | null
 ): Promise<SendResult> {
+  const attachments: EmailAttachment[] = [];
+  if (attachmentName && attachmentUrl) {
+    if (attachmentUrl.startsWith('http://') || attachmentUrl.startsWith('https://')) {
+      attachments.push({ filename: attachmentName, path: attachmentUrl });
+    } else if (attachmentUrl.startsWith('data:')) {
+      const base64Data = attachmentUrl.split(',')[1];
+      if (base64Data) {
+        attachments.push({ filename: attachmentName, content: base64Data });
+      }
+    }
+  }
+
   return sendEmail(
     to,
     `You've been assigned to ${projectTitle}`,
-    renderProjectAssignedHtml(name, projectTitle, supervisorName, supervisorEmail)
+    renderProjectAssignedHtml(name, projectTitle, supervisorName, supervisorEmail, attachmentName, attachmentUrl),
+    attachments.length > 0 ? attachments : undefined
   );
 }
 

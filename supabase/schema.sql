@@ -361,8 +361,15 @@ CREATE TABLE IF NOT EXISTS public.projects (
   target_hours INTEGER NOT NULL CHECK (target_hours > 0),
   quota INTEGER NOT NULL CHECK (quota > 0),
   milestones TEXT[] NOT NULL DEFAULT '{}',
+  attachment_path TEXT,
+  attachment_name TEXT,
+  attachment_url TEXT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+ALTER TABLE public.projects ADD COLUMN IF NOT EXISTS attachment_path TEXT;
+ALTER TABLE public.projects ADD COLUMN IF NOT EXISTS attachment_name TEXT;
+ALTER TABLE public.projects ADD COLUMN IF NOT EXISTS attachment_url TEXT;
 
 CREATE INDEX IF NOT EXISTS idx_projects_created ON public.projects(created_at DESC);
 
@@ -649,6 +656,26 @@ CREATE POLICY "Admins can read resumes"
   FOR SELECT
   TO authenticated
   USING (bucket_id = 'resumes' AND public.is_admin());
+
+-- 9b. Project attachments bucket (public download, admin manage)
+INSERT INTO storage.buckets (id, name, public, file_size_limit)
+VALUES ('project-attachments', 'project-attachments', TRUE, 10485760)
+ON CONFLICT (id) DO UPDATE SET public = TRUE;
+
+DROP POLICY IF EXISTS "Anyone can view project attachments" ON storage.objects;
+CREATE POLICY "Anyone can view project attachments"
+  ON storage.objects
+  FOR SELECT
+  TO authenticated, anon
+  USING (bucket_id = 'project-attachments');
+
+DROP POLICY IF EXISTS "Admins can manage project attachments" ON storage.objects;
+CREATE POLICY "Admins can manage project attachments"
+  ON storage.objects
+  FOR ALL
+  TO authenticated
+  USING (bucket_id = 'project-attachments' AND public.is_admin())
+  WITH CHECK (bucket_id = 'project-attachments' AND public.is_admin());
 
 -- ==============================================================================
 -- 10. Admin invites

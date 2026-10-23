@@ -9,6 +9,7 @@ import {
   OrgSettings,
   OrganizationProfile,
   Supervisor,
+  GeofenceSettings,
   getIntakeStatus,
   loadSettings,
   normalizeSettings,
@@ -27,7 +28,12 @@ import {
   Loader2,
   AlertCircle,
   Users,
+  MapPin,
+  Navigation,
+  Crosshair,
+  ExternalLink,
 } from 'lucide-react';
+import { captureLocation, mapsLink, LocationCaptureError } from '@/lib/geolocation';
 
 const INPUT =
   'mt-1.5 block w-full rounded-xl border bg-white px-3.5 py-2.5 text-sm text-slate-900 focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20';
@@ -130,9 +136,15 @@ export default function AdminSettingsPage() {
   const dirty = JSON.stringify({ ...draft, updated_at: undefined }) !== JSON.stringify({ ...saved, updated_at: undefined });
   const intakeStatus = getIntakeStatus(draft.intake);
 
+  const [detectingLocation, setDetectingLocation] = useState(false);
+  const [locationSuccess, setLocationSuccess] = useState<string | null>(null);
+  const [locationError, setLocationError] = useState<string | null>(null);
+
   const touch = () => {
     setJustSaved(false);
     setSaveError(null);
+    setLocationSuccess(null);
+    setLocationError(null);
   };
   const setOrg = <K extends keyof OrganizationProfile>(key: K, value: OrganizationProfile[K]) => {
     touch();
@@ -141,6 +153,36 @@ export default function AdminSettingsPage() {
   const setIntake = <K extends keyof IntakeWindow>(key: K, value: IntakeWindow[K]) => {
     touch();
     setDraft((d) => ({ ...d, intake: { ...d.intake, [key]: value } }));
+  };
+  const setGeofence = <K extends keyof GeofenceSettings>(key: K, value: GeofenceSettings[K]) => {
+    touch();
+    setDraft((d) => ({ ...d, geofence: { ...d.geofence, [key]: value } }));
+  };
+  const handleUseCurrentLocation = async () => {
+    setLocationError(null);
+    setLocationSuccess(null);
+    setDetectingLocation(true);
+    try {
+      const loc = await captureLocation();
+      touch();
+      setDraft((d) => ({
+        ...d,
+        geofence: {
+          ...d.geofence,
+          latitude: Number(loc.latitude.toFixed(6)),
+          longitude: Number(loc.longitude.toFixed(6)),
+        },
+      }));
+      setLocationSuccess(`Detected device coordinates: ${loc.latitude.toFixed(5)}, ${loc.longitude.toFixed(5)} (±${Math.round(loc.accuracy)}m accuracy)`);
+    } catch (err) {
+      setLocationError(
+        err instanceof LocationCaptureError || err instanceof Error
+          ? err.message
+          : 'Could not detect current location. Please ensure location services are enabled.'
+      );
+    } finally {
+      setDetectingLocation(false);
+    }
   };
   const setSupervisor = (index: number, patch: Partial<Supervisor>) => {
     touch();
@@ -191,6 +233,8 @@ export default function AdminSettingsPage() {
     setShowErrors(false);
     setSaveError(null);
     setJustSaved(false);
+    setLocationSuccess(null);
+    setLocationError(null);
   };
 
   return (
@@ -207,7 +251,7 @@ export default function AdminSettingsPage() {
           </Link>
           <h1 className="text-2xl font-black tracking-tight text-slate-900 sm:text-3xl">NGO Portal Settings</h1>
           <p className="text-sm text-slate-600">
-            Organization profile, the application intake window, and supervisor contacts.
+            Organization profile, GPS attendance geofence, application intake window, and supervisor contacts.
           </p>
         </div>
 
@@ -349,6 +393,182 @@ export default function AdminSettingsPage() {
                   className={inputClass(visibleErrors['intake.closed_message'])}
                 />
               </Field>
+            </Section>
+
+            {/* GPS Geofence & Attendance Location */}
+            <Section
+              icon={<MapPin className="h-5 w-5" />}
+              title="GPS Geofence & Attendance Location"
+              description="Configure the NGO physical site coordinates and radius to verify volunteer & intern attendance check-ins."
+              aside={
+                <span
+                  className={`inline-flex shrink-0 items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-bold ${
+                    draft.geofence.enabled
+                      ? 'border-emerald-200 bg-emerald-50 text-emerald-800'
+                      : 'border-slate-200 bg-slate-100 text-slate-600'
+                  }`}
+                >
+                  {draft.geofence.enabled ? (
+                    <>
+                      <Navigation className="h-3.5 w-3.5 text-emerald-600" />
+                      Active · {draft.geofence.radius_meters}m radius
+                    </>
+                  ) : (
+                    'Geofence disabled'
+                  )}
+                </span>
+              }
+            >
+              <label className="flex items-center gap-3 text-sm font-semibold text-slate-800 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={draft.geofence.enabled}
+                  onChange={(e) => setGeofence('enabled', e.target.checked)}
+                  className="h-4 w-4 rounded border-slate-300 text-purple-600"
+                />
+                Enable GPS geofence verification for attendance
+              </label>
+
+              <Field
+                label="Site / Center Name"
+                error={visibleErrors['geofence.site_name']}
+                hint="Used as a label in attendance records and verification tables."
+              >
+                <input
+                  type="text"
+                  placeholder="e.g. Main Headquarters, Downtown Center"
+                  value={draft.geofence.site_name}
+                  onChange={(e) => setGeofence('site_name', e.target.value)}
+                  className={inputClass(visibleErrors['geofence.site_name'])}
+                />
+              </Field>
+
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                <Field
+                  label="Site Latitude"
+                  error={visibleErrors['geofence.latitude']}
+                  hint="Decimal degrees (-90.0 to 90.0)"
+                >
+                  <input
+                    type="number"
+                    step="any"
+                    value={isNaN(draft.geofence.latitude) ? '' : draft.geofence.latitude}
+                    onChange={(e) => {
+                      const val = parseFloat(e.target.value);
+                      setGeofence('latitude', isNaN(val) ? (e.target.value as unknown as number) : val);
+                    }}
+                    className={inputClass(visibleErrors['geofence.latitude'])}
+                  />
+                </Field>
+
+                <Field
+                  label="Site Longitude"
+                  error={visibleErrors['geofence.longitude']}
+                  hint="Decimal degrees (-180.0 to 180.0)"
+                >
+                  <input
+                    type="number"
+                    step="any"
+                    value={isNaN(draft.geofence.longitude) ? '' : draft.geofence.longitude}
+                    onChange={(e) => {
+                      const val = parseFloat(e.target.value);
+                      setGeofence('longitude', isNaN(val) ? (e.target.value as unknown as number) : val);
+                    }}
+                    className={inputClass(visibleErrors['geofence.longitude'])}
+                  />
+                </Field>
+
+                <Field
+                  label="Geofence Radius (meters)"
+                  error={visibleErrors['geofence.radius_meters']}
+                  hint="Check-ins beyond this distance get flagged."
+                >
+                  <input
+                    type="number"
+                    min="10"
+                    max="500000"
+                    step="10"
+                    value={isNaN(draft.geofence.radius_meters) ? '' : draft.geofence.radius_meters}
+                    onChange={(e) => {
+                      const val = parseInt(e.target.value, 10);
+                      setGeofence('radius_meters', isNaN(val) ? (e.target.value as unknown as number) : val);
+                    }}
+                    className={inputClass(visibleErrors['geofence.radius_meters'])}
+                  />
+                </Field>
+              </div>
+
+              {/* Quick radius presets */}
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1.5">Quick Radius Presets</label>
+                <div className="flex flex-wrap gap-2">
+                  {[100, 250, 500, 1000, 2000].map((meters) => (
+                    <button
+                      key={meters}
+                      type="button"
+                      onClick={() => setGeofence('radius_meters', meters)}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all cursor-pointer ${
+                        draft.geofence.radius_meters === meters
+                          ? 'border-purple-600 bg-purple-50 text-purple-700 shadow-2xs'
+                          : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
+                      }`}
+                    >
+                      {meters >= 1000 ? `${meters / 1000} km` : `${meters} m`}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Location detection & Google Maps action toolbar */}
+              <div className="flex flex-wrap items-center gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={handleUseCurrentLocation}
+                  disabled={detectingLocation}
+                  className="inline-flex items-center gap-2 rounded-xl border border-purple-200 bg-purple-50 px-3.5 py-2 text-xs font-bold text-purple-700 hover:bg-purple-100 disabled:opacity-50 cursor-pointer"
+                >
+                  {detectingLocation ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <Crosshair className="h-3.5 w-3.5" />
+                  )}
+                  {detectingLocation ? 'Detecting device GPS...' : 'Use My Current Device Location'}
+                </button>
+
+                {!isNaN(draft.geofence.latitude) && !isNaN(draft.geofence.longitude) && (
+                  <a
+                    href={mapsLink({ latitude: draft.geofence.latitude, longitude: draft.geofence.longitude })}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 cursor-pointer"
+                  >
+                    <ExternalLink className="h-3.5 w-3.5 text-slate-500" />
+                    Preview Pin on Google Maps
+                  </a>
+                )}
+              </div>
+
+              {locationSuccess && (
+                <div className="flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-800">
+                  <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
+                  <span>{locationSuccess}</span>
+                </div>
+              )}
+
+              {locationError && (
+                <div className="flex items-center gap-2 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-800">
+                  <AlertCircle className="h-4 w-4 text-rose-600 shrink-0" />
+                  <span>{locationError}</span>
+                </div>
+              )}
+
+              {/* Helper text explaining geofencing logic */}
+              <div className="rounded-xl border border-slate-100 bg-slate-50/80 p-3.5 text-[11px] text-slate-500 space-y-1">
+                <p className="font-semibold text-slate-700">How attendance geofencing works:</p>
+                <p>
+                  When volunteers or interns check in on their device, their GPS coordinates are captured. In the Attendance Verification console, the system calculates their straight-line distance from this configured site location. Any check-in farther than {draft.geofence.radius_meters || 500} meters is highlighted with a distance warning so admins can review it before confirming presence.
+                </p>
+              </div>
             </Section>
 
             {/* Supervisors */}

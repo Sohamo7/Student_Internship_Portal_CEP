@@ -34,6 +34,8 @@ interface EmailRequestBody {
   projectTitle?: unknown;
   supervisorName?: unknown;
   supervisorEmail?: unknown;
+  attachmentName?: unknown;
+  attachmentUrl?: unknown;
 }
 
 const fail = (error: string, status: number) => NextResponse.json({ success: false, error }, { status });
@@ -101,12 +103,26 @@ export async function POST(request: NextRequest) {
         const projectTitle = clampText(body.projectTitle, 200);
         const supervisorName = clampText(body.supervisorName, 100);
         const supervisorEmail = normalizeEmail(body.supervisorEmail);
+        const attachmentName = clampText(body.attachmentName, 150) || undefined;
+        const attachmentUrl =
+          typeof body.attachmentUrl === 'string' && body.attachmentUrl.trim()
+            ? body.attachmentUrl.trim()
+            : undefined;
+
         if (!projectTitle || !supervisorName || !supervisorEmail) {
           return fail('Missing project assignment fields.', 400);
         }
         return NextResponse.json({
           success: true,
-          ...(await sendProjectAssignedEmail(to, name, projectTitle, supervisorName, supervisorEmail)),
+          ...(await sendProjectAssignedEmail(
+            to,
+            name,
+            projectTitle,
+            supervisorName,
+            supervisorEmail,
+            attachmentName,
+            attachmentUrl
+          )),
         });
       }
     }

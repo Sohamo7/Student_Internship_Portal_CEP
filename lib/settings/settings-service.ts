@@ -31,14 +31,46 @@ export interface Supervisor {
   track: string;
 }
 
+export interface GeofenceSettings {
+  /** Master switch: when false, geofence distance restrictions are disabled. */
+  enabled: boolean;
+  /** Name or description of the physical site (e.g., "Main NGO Center"). */
+  site_name: string;
+  /** Site latitude (-90 to 90). */
+  latitude: number;
+  /** Site longitude (-180 to 180). */
+  longitude: number;
+  /** Geofence threshold radius in meters (e.g., 500). */
+  radius_meters: number;
+}
+
 export interface OrgSettings {
   organization: OrganizationProfile;
   intake: IntakeWindow;
   supervisors: Supervisor[];
+  geofence: GeofenceSettings;
   updated_at?: string;
 }
 
 export const SETTINGS_STORAGE_KEY = 'cep_org_settings';
+
+const envLat = typeof process !== 'undefined' && process.env?.NEXT_PUBLIC_NGO_SITE_LATITUDE
+  ? parseFloat(process.env.NEXT_PUBLIC_NGO_SITE_LATITUDE)
+  : 28.6139;
+const envLng = typeof process !== 'undefined' && process.env?.NEXT_PUBLIC_NGO_SITE_LONGITUDE
+  ? parseFloat(process.env.NEXT_PUBLIC_NGO_SITE_LONGITUDE)
+  : 77.2090;
+const envRadius = typeof process !== 'undefined' && process.env?.NEXT_PUBLIC_NGO_GEOFENCE_RADIUS_METERS
+  ? parseFloat(process.env.NEXT_PUBLIC_NGO_GEOFENCE_RADIUS_METERS)
+  : 500;
+
+export const DEFAULT_GEOFENCE: GeofenceSettings = {
+  enabled: true,
+  site_name: 'Main NGO Center',
+  latitude: isNaN(envLat) ? 28.6139 : envLat,
+  longitude: isNaN(envLng) ? 77.2090 : envLng,
+  radius_meters: isNaN(envRadius) || envRadius <= 0 ? 500 : envRadius,
+};
 
 export const DEFAULT_SETTINGS: OrgSettings = {
   organization: {
@@ -61,6 +93,7 @@ export const DEFAULT_SETTINGS: OrgSettings = {
     { id: 'sup-003', name: 'Er. Rajesh Bose', email: 'rajesh.bose@ngo.org', phone: '', track: 'Environment' },
     { id: 'sup-004', name: 'Smt. Geeta Joshi', email: 'geeta.joshi@ngo.org', phone: '', track: 'Vocational' },
   ],
+  geofence: DEFAULT_GEOFENCE,
 };
 
 // ---------------------------------------------------------------------------
@@ -71,12 +104,21 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
 const str = (v: unknown, fallback = ''): string => (typeof v === 'string' ? v : fallback);
+const num = (v: unknown, fallback: number): number => {
+  if (typeof v === 'number' && !isNaN(v)) return v;
+  if (typeof v === 'string') {
+    const parsed = parseFloat(v.trim());
+    if (!isNaN(parsed)) return parsed;
+  }
+  return fallback;
+};
 
 /** Merges unknown stored data over the defaults so old/partial/corrupt payloads never crash the UI. */
 export function normalizeSettings(raw: unknown): OrgSettings {
   const r = (raw && typeof raw === 'object' ? raw : {}) as Record<string, unknown>;
   const org = (r.organization && typeof r.organization === 'object' ? r.organization : {}) as Record<string, unknown>;
   const intake = (r.intake && typeof r.intake === 'object' ? r.intake : {}) as Record<string, unknown>;
+  const geo = (r.geofence && typeof r.geofence === 'object' ? r.geofence : {}) as Record<string, unknown>;
   const d = DEFAULT_SETTINGS;
 
   const supervisors = Array.isArray(r.supervisors)
@@ -107,6 +149,13 @@ export function normalizeSettings(raw: unknown): OrgSettings {
       closed_message: str(intake.closed_message, d.intake.closed_message),
     },
     supervisors,
+    geofence: {
+      enabled: typeof geo.enabled === 'boolean' ? geo.enabled : d.geofence.enabled,
+      site_name: str(geo.site_name, d.geofence.site_name),
+      latitude: num(geo.latitude, d.geofence.latitude),
+      longitude: num(geo.longitude, d.geofence.longitude),
+      radius_meters: Math.max(10, num(geo.radius_meters, d.geofence.radius_meters)),
+    },
     updated_at: typeof r.updated_at === 'string' ? r.updated_at : undefined,
   };
 }
@@ -115,11 +164,11 @@ export type SettingsErrors = Record<string, string>;
 
 /**
  * Field-level validation. Keys: `organization.name`, `intake.closes_on`,
- * `supervisors.<index>.email`, …  An empty object means the settings are valid.
+ * `supervisors.<index>.email`, `geofence.latitude`, … An empty object means valid.
  */
 export function validateSettings(s: OrgSettings): SettingsErrors {
   const e: SettingsErrors = {};
-  const { organization: o, intake: i } = s;
+  const { organization: o, intake: i, geofence: g } = s;
 
   if (!o.name.trim()) e['organization.name'] = 'Organization name is required.';
   if (!o.registration_number.trim()) e['organization.registration_number'] = 'Registration number is required.';
@@ -144,6 +193,24 @@ export function validateSettings(s: OrgSettings): SettingsErrors {
     else if (seen.has(sup.email.trim().toLowerCase())) e[`supervisors.${idx}.email`] = 'Duplicate supervisor email.';
     seen.add(sup.email.trim().toLowerCase());
   });
+
+  if (g) {
+    if (!g.site_name.trim()) {
+      e['geofence.site_name'] = 'Site name or location description is required.';
+    }
+    if (isNaN(g.latitude) || g.latitude < -90 || g.latitude > 90) {
+      e['geofence.latitude'] = 'Latitude must be a valid number between -90 and 90.';
+    }
+    if (isNaN(g.longitude) || g.longitude < -180 || g.longitude > 180) {
+      e['geofence.longitude'] = 'Longitude must be a valid number between -180 and 180.';
+    }
+    if (isNaN(g.radius_meters) || g.radius_meters <= 0) {
+      e['geofence.radius_meters'] = 'Radius must be a positive number of meters (e.g. 500).';
+    } else if (g.radius_meters > 500000) {
+      e['geofence.radius_meters'] = 'Radius cannot exceed 500,000 meters (500 km).';
+    }
+  }
+
   return e;
 }
 
@@ -167,6 +234,13 @@ export function cleanSettings(s: OrgSettings): OrgSettings {
       phone: t(x.phone),
       track: t(x.track),
     })),
+    geofence: {
+      enabled: Boolean(s.geofence.enabled),
+      site_name: t(s.geofence.site_name),
+      latitude: Number(s.geofence.latitude),
+      longitude: Number(s.geofence.longitude),
+      radius_meters: Math.round(Number(s.geofence.radius_meters)),
+    },
     updated_at: s.updated_at,
   };
 }

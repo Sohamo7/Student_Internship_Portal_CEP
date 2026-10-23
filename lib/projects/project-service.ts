@@ -21,6 +21,9 @@ export interface Project {
   milestones: string[];
   assigned: AssignedMember[];
   created_at: string;
+  attachment_path?: string | null;
+  attachment_name?: string | null;
+  attachment_url?: string | null;
 }
 
 const STORAGE_KEY = 'cep_projects';
@@ -31,6 +34,9 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 
 type CreateProjectInput = Omit<Project, 'id' | 'assigned' | 'created_at' | 'milestones'> & {
   milestones?: string[];
+  attachment_path?: string | null;
+  attachment_name?: string | null;
+  attachment_url?: string | null;
 };
 
 const DEFAULT_MILESTONES = ['Complete onboarding', 'Deliver first milestone', 'Submit final report'];
@@ -53,6 +59,9 @@ function fromRow(row: ProjectRow): Project {
   return {
     ...rest,
     milestones: rest.milestones ?? [],
+    attachment_path: rest.attachment_path ?? null,
+    attachment_name: rest.attachment_name ?? null,
+    attachment_url: rest.attachment_url ?? null,
     assigned: (project_assignments ?? []).map((a) => ({
       id: a.member_id ?? a.id,
       name: a.member_name,
@@ -112,21 +121,36 @@ export async function createProject(data: CreateProjectInput): Promise<Project> 
 
   if (isSupabaseConfigured()) {
     const supabase = createClient();
-    const { data: row, error } = await supabase
+    const insertPayload: Record<string, unknown> = {
+      title: data.title,
+      description: data.description,
+      track: data.track,
+      supervisor_name: data.supervisor_name,
+      supervisor_email: data.supervisor_email,
+      duration_weeks: data.duration_weeks,
+      target_hours: data.target_hours,
+      quota: data.quota,
+      milestones,
+      attachment_path: data.attachment_path || null,
+      attachment_name: data.attachment_name || null,
+      attachment_url: data.attachment_url || null,
+    };
+
+    let { data: row, error } = await supabase
       .from('projects')
-      .insert({
-        title: data.title,
-        description: data.description,
-        track: data.track,
-        supervisor_name: data.supervisor_name,
-        supervisor_email: data.supervisor_email,
-        duration_weeks: data.duration_weeks,
-        target_hours: data.target_hours,
-        quota: data.quota,
-        milestones,
-      })
+      .insert(insertPayload)
       .select(PROJECT_SELECT)
       .single();
+
+    if (error && error.message?.includes('attachment_')) {
+      delete insertPayload.attachment_path;
+      delete insertPayload.attachment_name;
+      delete insertPayload.attachment_url;
+      const retry = await supabase.from('projects').insert(insertPayload).select(PROJECT_SELECT).single();
+      row = retry.data;
+      error = retry.error;
+    }
+
     if (error) throw new Error(error.message);
     return fromRow(row as unknown as ProjectRow);
   }
@@ -137,6 +161,9 @@ export async function createProject(data: CreateProjectInput): Promise<Project> 
     milestones,
     assigned: [],
     created_at: new Date().toISOString(),
+    attachment_path: data.attachment_path || null,
+    attachment_name: data.attachment_name || null,
+    attachment_url: data.attachment_url || null,
   };
   writeLocal([newProject, ...readLocal()]);
   return newProject;

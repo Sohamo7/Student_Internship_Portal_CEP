@@ -25,7 +25,10 @@ import {
   CheckCircle2,
   HelpCircle,
   RotateCw,
+  Settings,
+  ExternalLink,
 } from 'lucide-react';
+import { useOrgSettings } from '@/lib/settings/use-org-settings';
 
 const DEFAULT_SITE = { latitude: 28.6139, longitude: 77.209 };
 const DEFAULT_RADIUS_METERS = 500;
@@ -74,7 +77,26 @@ function AdminAttendanceContent() {
   const [actionError, setActionError] = useState<string | null>(null);
   const [actionSuccess, setActionSuccess] = useState<string | null>(null);
 
-  const { site, radiusMeters } = getSiteConfig();
+  const { settings: orgSettings } = useOrgSettings();
+  const geofence = orgSettings.geofence;
+  const envConfig = getSiteConfig();
+
+  const site = {
+    latitude:
+      typeof geofence?.latitude === 'number' && !isNaN(geofence.latitude)
+        ? geofence.latitude
+        : envConfig.site.latitude,
+    longitude:
+      typeof geofence?.longitude === 'number' && !isNaN(geofence.longitude)
+        ? geofence.longitude
+        : envConfig.site.longitude,
+  };
+  const radiusMeters =
+    typeof geofence?.radius_meters === 'number' && geofence.radius_meters > 0
+      ? geofence.radius_meters
+      : envConfig.radiusMeters;
+  const geofenceEnabled = geofence?.enabled ?? true;
+  const siteName = geofence?.site_name || 'Main NGO Center';
 
   const load = async () => {
     setLoading(true);
@@ -139,9 +161,10 @@ function AdminAttendanceContent() {
       (r) =>
         !r.verified &&
         (roleFilter === 'all' || r.role === roleFilter) &&
-        r.in_latitude != null &&
-        r.in_longitude != null &&
-        distanceMeters({ latitude: r.in_latitude, longitude: r.in_longitude }, site) <= radiusMeters
+        (!geofenceEnabled ||
+          (r.in_latitude != null &&
+            r.in_longitude != null &&
+            distanceMeters({ latitude: r.in_latitude, longitude: r.in_longitude }, site) <= radiusMeters))
     );
 
     if (toVerify.length === 0) {
@@ -212,6 +235,31 @@ function AdminAttendanceContent() {
                     ? 'Verify active intern attendance check-in locations with GPS geofence tracking.'
                     : 'Verify volunteer and intern attendance check-in locations with GPS geofence tracking.'}
               </p>
+              <div className="flex flex-wrap items-center gap-2 pt-1 text-xs text-slate-500">
+                <span className="inline-flex items-center gap-1 font-semibold text-slate-700">
+                  <MapPin className="h-3.5 w-3.5 text-purple-600" />
+                  {siteName}
+                </span>
+                <span>·</span>
+                <span className={geofenceEnabled ? 'text-emerald-700 font-semibold' : 'text-slate-500'}>
+                  {geofenceEnabled ? `Geofence: ${radiusMeters.toLocaleString()}m radius` : 'Geofence disabled'}
+                </span>
+                <a
+                  href={mapsLink(site)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-0.5 text-purple-600 hover:underline font-medium"
+                >
+                  <ExternalLink className="h-3 w-3" /> View pin
+                </a>
+                <span>·</span>
+                <Link
+                  href="/admin/settings"
+                  className="inline-flex items-center gap-1 text-purple-600 hover:underline font-medium"
+                >
+                  <Settings className="h-3 w-3" /> Configure in Settings
+                </Link>
+              </div>
             </div>
 
             <div className="flex items-center gap-2 shrink-0">
@@ -377,7 +425,7 @@ function AdminAttendanceContent() {
                     const dist = hasLocation
                       ? Math.round(distanceMeters({ latitude: r.in_latitude, longitude: r.in_longitude }, site))
                       : null;
-                    const flagged = dist != null && dist > radiusMeters;
+                    const flagged = geofenceEnabled && dist != null && dist > radiusMeters;
                     const isStudent = r.role === 'student';
                     const isIntern = r.role === 'intern';
 
@@ -442,6 +490,8 @@ function AdminAttendanceContent() {
                         <td className="px-6 py-4">
                           {dist == null ? (
                             <span className="text-slate-400">Location unavailable</span>
+                          ) : !geofenceEnabled ? (
+                            <span className="text-slate-500">{dist.toLocaleString()}m (geofence off)</span>
                           ) : flagged ? (
                             <span className="inline-flex items-center gap-1 font-semibold text-rose-700">
                               <ShieldAlert className="h-3.5 w-3.5" /> {dist.toLocaleString()}m — outside geofence

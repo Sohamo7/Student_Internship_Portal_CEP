@@ -34,7 +34,18 @@ export function notifyProjectAssigned(
   name: string,
   projectTitle: string,
   supervisorName: string,
-  supervisorEmail: string
+  supervisorEmail: string,
+  attachmentName?: string | null,
+  attachmentUrl?: string | null
 ): void {
-  void post({ type: 'project_assigned', to, name, projectTitle, supervisorName, supervisorEmail });
+  void post({
+    type: 'project_assigned',
+    to,
+    name,
+    projectTitle,
+    supervisorName,
+    supervisorEmail,
+    attachmentName: attachmentName || null,
+    attachmentUrl: attachmentUrl || null,
+  });
 }
