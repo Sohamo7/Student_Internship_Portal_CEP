@@ -60,7 +60,7 @@ export default function AdminTeamPage() {
       return;
     }
     setSending(true);
-    const result = await inviteAdmin(name, email, profile?.email);
+    const result = await inviteAdmin(name, email);
     setSending(false);
 
     if (!result.success) {
