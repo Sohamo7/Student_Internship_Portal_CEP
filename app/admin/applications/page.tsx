@@ -10,6 +10,7 @@ import {
   effectiveStatus,
   fetchApplications,
   updateApplicationStatus,
+  deleteApplication,
 } from '@/lib/applications/application-service';
 import { ApplicationStatus, UserProfile } from '@/lib/supabase/types';
 import { notifyApplicationApproved } from '@/lib/email/client';
@@ -22,6 +23,8 @@ import {
   Loader2,
   GraduationCap,
   Users,
+  Trash2,
+  AlertTriangle,
 } from 'lucide-react';
 
 type FilterOption = 'All' | ApplicationStatus;
@@ -46,6 +49,8 @@ function AdminApplicationsContent() {
   const [actionError, setActionError] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<FilterOption>('All');
   const [searchTerm, setSearchTerm] = useState('');
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<UserProfile | null>(null);
 
   const loadApplications = async () => {
     setLoading(true);
@@ -93,6 +98,21 @@ function AdminApplicationsContent() {
       )
     );
     setUpdatingId(null);
+  };
+
+  const handleDelete = async (applicant: UserProfile) => {
+    setConfirmDelete(null);
+    setDeletingId(applicant.id);
+    setActionError(null);
+    const result = await deleteApplication(applicant);
+    if (!result.ok) {
+      setActionError(`Could not delete ${applicant.name}: ${result.error}`);
+      setDeletingId(null);
+      return;
+    }
+    // Remove from the local list so it disappears immediately
+    setApplications((prev) => prev.filter((a) => a.id !== applicant.id));
+    setDeletingId(null);
   };
 
   const filtered = applications.filter((a) => {
@@ -259,7 +279,7 @@ function AdminApplicationsContent() {
                         <div className="flex items-center justify-end gap-1.5">
                           <button
                             onClick={() => updateStatus(app, 'approved')}
-                            disabled={updatingId === app.id || status === 'approved'}
+                            disabled={updatingId === app.id || deletingId === app.id || status === 'approved'}
                             className="p-1.5 rounded-lg border border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
                             title="Approve — unlocks portal login"
                           >
@@ -267,11 +287,23 @@ function AdminApplicationsContent() {
                           </button>
                           <button
                             onClick={() => updateStatus(app, 'rejected')}
-                            disabled={updatingId === app.id || status === 'rejected'}
+                            disabled={updatingId === app.id || deletingId === app.id || status === 'rejected'}
                             className="p-1.5 rounded-lg border border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100 transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
                             title="Reject application"
                           >
                             <X className="h-4 w-4" />
+                          </button>
+                          <button
+                            onClick={() => setConfirmDelete(app)}
+                            disabled={updatingId === app.id || deletingId === app.id}
+                            className="p-1.5 rounded-lg border border-slate-200 bg-white text-slate-500 hover:border-rose-300 hover:bg-rose-50 hover:text-rose-600 transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                            title="Permanently delete this member"
+                          >
+                            {deletingId === app.id ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <Trash2 className="h-4 w-4" />
+                            )}
                           </button>
                         </div>
                       </td>
@@ -283,6 +315,45 @@ function AdminApplicationsContent() {
           )}
         </div>
       </main>
+
+      {/* Delete Confirmation Modal */}
+      {confirmDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+          <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-xl space-y-4">
+            <div className="flex items-start gap-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-rose-100 text-rose-600">
+                <AlertTriangle className="h-5 w-5" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-slate-900">Delete Member Permanently?</h3>
+                <p className="mt-1 text-sm text-slate-600">
+                  This will permanently remove <strong>{confirmDelete.name}</strong> ({confirmDelete.email}) from the
+                  database. Their auth account, profile, attendance records, and all associated data will be deleted.
+                </p>
+                <p className="mt-2 text-xs font-semibold text-rose-600">
+                  This action cannot be undone.
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center justify-end gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setConfirmDelete(null)}
+                className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => handleDelete(confirmDelete)}
+                className="rounded-xl bg-rose-600 px-4 py-2 text-sm font-semibold text-white hover:bg-rose-500 cursor-pointer"
+              >
+                Yes, Delete Permanently
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -128,3 +128,34 @@ export async function updateApplicationStatus(
   }
   return { ok: false, error: 'Could not assign a unique joinee ID. Please try again.' };
 }
+
+// ---------------------------------------------------------------------------
+// Delete a student/intern from the database
+// ---------------------------------------------------------------------------
+
+export type DeleteResult = { ok: true } | { ok: false; error: string };
+
+/**
+ * Permanently delete a student/intern account via the admin API.
+ * The server verifies that the caller is a signed-in admin and that the
+ * target is not an admin account.
+ */
+export async function deleteApplication(
+  applicant: Pick<UserProfile, 'id'>
+): Promise<DeleteResult> {
+  if (!isSupabaseConfigured()) {
+    return { ok: false, error: 'Database is not configured. Deletions cannot be performed.' };
+  }
+  try {
+    const res = await fetch(`/api/admin/members?id=${encodeURIComponent(applicant.id)}`, {
+      method: 'DELETE',
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || !data.success) {
+      return { ok: false, error: data.error || 'Could not delete the member.' };
+    }
+    return { ok: true };
+  } catch {
+    return { ok: false, error: 'Network error while deleting the member.' };
+  }
+}
