@@ -71,12 +71,12 @@ export default function AdminDashboardPage() {
         <FadeInUp>
           <div className="flex flex-col gap-1">
             <div className="flex items-center gap-2">
-              <h1 className="text-2xl font-extrabold tracking-tight text-slate-900">
+              <h1 className="text-2xl font-extrabold tracking-tight text-slate-900 dark:text-slate-50">
                 NGO Admin Console
               </h1>
               <PulseDot color="#8b5cf6" size={8} />
             </div>
-            <p className="text-sm text-slate-600">
+            <p className="text-sm text-slate-600 dark:text-slate-400">
               Full management access. Review applications, manage students, projects, and attendance.
             </p>
           </div>
@@ -150,9 +150,9 @@ export default function AdminDashboardPage() {
         {/* Admin Management Modules */}
         <FadeInUp delay={0.3}>
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-base font-bold text-slate-900">Management Center</h2>
+            <h2 className="text-base font-bold text-slate-900 dark:text-slate-50">Management Center</h2>
             <motion.span
-              className="text-xs font-semibold text-purple-700 bg-purple-50 px-2 py-0.5 rounded border border-purple-200 flex items-center gap-1.5"
+              className="text-xs font-semibold text-purple-700 dark:text-purple-300 bg-purple-50 dark:bg-purple-950/60 px-2 py-0.5 rounded border border-purple-200 dark:border-purple-800 flex items-center gap-1.5"
               animate={{ opacity: [1, 0.7, 1] }}
               transition={{ duration: 3, repeat: Infinity }}
             >
@@ -167,25 +167,25 @@ export default function AdminDashboardPage() {
           <StaggerItem>
             <Link
               href="/admin/applications"
-              className="group rounded-2xl border border-slate-200/90 bg-white p-6 shadow-xs transition-all hover:border-amber-400 hover:shadow-md block card-3d"
+              className="group rounded-2xl border border-slate-200/90 dark:border-slate-700/60 bg-white dark:bg-slate-800/70 p-6 shadow-xs transition-all hover:border-amber-400 dark:hover:border-amber-600 hover:shadow-md block card-3d"
             >
               <div className="flex items-center justify-between">
                 <motion.div
-                  className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-50 text-amber-600 group-hover:bg-amber-600 group-hover:text-white transition-colors"
+                  className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-50 dark:bg-amber-950/50 text-amber-600 dark:text-amber-400 group-hover:bg-amber-600 group-hover:text-white transition-colors"
                   whileHover={{ rotate: 10, scale: 1.1 }}
                 >
                   <FileText className="h-5 w-5" />
                 </motion.div>
                 <motion.span
-                  className="rounded-md bg-amber-50 border border-amber-200 px-2 py-0.5 text-[10px] font-bold text-amber-700"
+                  className="rounded-md bg-amber-50 dark:bg-amber-950/50 border border-amber-200 dark:border-amber-800 px-2 py-0.5 text-[10px] font-bold text-amber-700 dark:text-amber-300"
                   animate={{ scale: [1, 1.05, 1] }}
                   transition={{ duration: 2, repeat: Infinity }}
                 >
                   {stats ? `${stats.pendingApplications} Pending` : 'Applications'}
                 </motion.span>
               </div>
-              <h3 className="mt-4 font-bold text-slate-900 group-hover:text-amber-600 transition-colors">Review Applications</h3>
-              <p className="mt-1 text-xs text-slate-600">
+              <h3 className="mt-4 font-bold text-slate-900 dark:text-slate-50 group-hover:text-amber-600 transition-colors">Review Applications</h3>
+              <p className="mt-1 text-xs text-slate-600 dark:text-slate-400">
                 Evaluate student submissions and approve or decline applicants with 1-click actions.
               </p>
               <span className="mt-4 inline-flex items-center gap-1 text-xs font-bold text-amber-700 group-hover:translate-x-0.5 transition-transform">
@@ -198,21 +198,21 @@ export default function AdminDashboardPage() {
           <StaggerItem>
             <Link
               href="/admin/students"
-              className="group rounded-2xl border border-slate-200/90 bg-white p-6 shadow-xs transition-all hover:border-blue-400 hover:shadow-md block card-3d"
+              className="group rounded-2xl border border-slate-200/90 dark:border-slate-700/60 bg-white dark:bg-slate-800/70 p-6 shadow-xs transition-all hover:border-blue-400 dark:hover:border-blue-600 hover:shadow-md block card-3d"
             >
               <div className="flex items-center justify-between">
                 <motion.div
-                  className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50 text-blue-600 group-hover:bg-blue-600 group-hover:text-white transition-colors"
+                  className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50 dark:bg-blue-950/50 text-blue-600 dark:text-blue-400 group-hover:bg-blue-600 group-hover:text-white transition-colors"
                   whileHover={{ rotate: -10, scale: 1.1 }}
                 >
                   <Users className="h-5 w-5" />
                 </motion.div>
-                <span className="rounded-md bg-blue-50 border border-blue-200 px-2 py-0.5 text-[10px] font-bold text-blue-700">
+                <span className="rounded-md bg-blue-50 dark:bg-blue-950/50 border border-blue-200 dark:border-blue-800 px-2 py-0.5 text-[10px] font-bold text-blue-700 dark:text-blue-300">
                   {stats ? plural(stats.totalMembers, 'Member', 'Members') : 'Directory'}
                 </span>
               </div>
-              <h3 className="mt-4 font-bold text-slate-900 group-hover:text-blue-600 transition-colors">Student Directory</h3>
-              <p className="mt-1 text-xs text-slate-600">
+              <h3 className="mt-4 font-bold text-slate-900 dark:text-slate-50 group-hover:text-blue-600 transition-colors">Student Directory</h3>
+              <p className="mt-1 text-xs text-slate-600 dark:text-slate-400">
                 Access list of verified students, view contact details, projects, and attendance streaks.
               </p>
               <span className="mt-4 inline-flex items-center gap-1 text-xs font-bold text-blue-700 group-hover:translate-x-0.5 transition-transform">
@@ -225,21 +225,21 @@ export default function AdminDashboardPage() {
           <StaggerItem>
             <Link
               href="/admin/projects"
-              className="group rounded-2xl border border-slate-200/90 bg-white p-6 shadow-xs transition-all hover:border-purple-400 hover:shadow-md block card-3d"
+              className="group rounded-2xl border border-slate-200/90 dark:border-slate-700/60 bg-white dark:bg-slate-800/70 p-6 shadow-xs transition-all hover:border-purple-400 dark:hover:border-purple-600 hover:shadow-md block card-3d"
             >
               <div className="flex items-center justify-between">
                 <motion.div
-                  className="flex h-10 w-10 items-center justify-center rounded-xl bg-purple-50 text-purple-600 group-hover:bg-purple-600 group-hover:text-white transition-colors"
+                  className="flex h-10 w-10 items-center justify-center rounded-xl bg-purple-50 dark:bg-purple-950/50 text-purple-600 dark:text-purple-400 group-hover:bg-purple-600 group-hover:text-white transition-colors"
                   whileHover={{ rotate: 10, scale: 1.1 }}
                 >
                   <Briefcase className="h-5 w-5" />
                 </motion.div>
-                <span className="rounded-md bg-purple-50 border border-purple-200 px-2 py-0.5 text-[10px] font-bold text-purple-700">
+                <span className="rounded-md bg-purple-50 dark:bg-purple-950/50 border border-purple-200 dark:border-purple-800 px-2 py-0.5 text-[10px] font-bold text-purple-700 dark:text-purple-300">
                   {stats ? `${stats.activeProjects} Active` : 'Projects'}
                 </span>
               </div>
-              <h3 className="mt-4 font-bold text-slate-900 group-hover:text-purple-600 transition-colors">Project Allocation</h3>
-              <p className="mt-1 text-xs text-slate-600">
+              <h3 className="mt-4 font-bold text-slate-900 dark:text-slate-50 group-hover:text-purple-600 transition-colors">Project Allocation</h3>
+              <p className="mt-1 text-xs text-slate-600 dark:text-slate-400">
                 Create NGO community projects, set capacity quotas, and map student interns.
               </p>
               <span className="mt-4 inline-flex items-center gap-1 text-xs font-bold text-purple-700 group-hover:translate-x-0.5 transition-transform">
@@ -252,21 +252,21 @@ export default function AdminDashboardPage() {
           <StaggerItem>
             <Link
               href="/admin/attendance"
-              className="group rounded-2xl border border-slate-200/90 bg-white p-6 shadow-xs transition-all hover:border-emerald-400 hover:shadow-md block card-3d"
+              className="group rounded-2xl border border-slate-200/90 dark:border-slate-700/60 bg-white dark:bg-slate-800/70 p-6 shadow-xs transition-all hover:border-emerald-400 dark:hover:border-emerald-600 hover:shadow-md block card-3d"
             >
               <div className="flex items-center justify-between">
                 <motion.div
-                  className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600 group-hover:bg-emerald-600 group-hover:text-white transition-colors"
+                  className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 group-hover:bg-emerald-600 group-hover:text-white transition-colors"
                   whileHover={{ rotate: -10, scale: 1.1 }}
                 >
                   <CalendarCheck className="h-5 w-5" />
                 </motion.div>
-                <span className="rounded-md bg-emerald-50 border border-emerald-200 px-2 py-0.5 text-[10px] font-bold text-emerald-700">
+                <span className="rounded-md bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200 dark:border-emerald-800 px-2 py-0.5 text-[10px] font-bold text-emerald-700 dark:text-emerald-300">
                   {stats ? `${stats.unverifiedAttendance} To Verify` : 'Live Log'}
                 </span>
               </div>
-              <h3 className="mt-4 font-bold text-slate-900 group-hover:text-emerald-600 transition-colors">Attendance Verification</h3>
-              <p className="mt-1 text-xs text-slate-600">
+              <h3 className="mt-4 font-bold text-slate-900 dark:text-slate-50 group-hover:text-emerald-600 transition-colors">Attendance Verification</h3>
+              <p className="mt-1 text-xs text-slate-600 dark:text-slate-400">
                 Monitor student attendance streaks, check-in timestamps, and verify daily presences.
               </p>
               <span className="mt-4 inline-flex items-center gap-1 text-xs font-bold text-emerald-700 group-hover:translate-x-0.5 transition-transform">
@@ -279,21 +279,21 @@ export default function AdminDashboardPage() {
           <StaggerItem>
             <Link
               href="/admin/work-logs"
-              className="group rounded-2xl border border-slate-200/90 bg-white p-6 shadow-xs transition-all hover:border-indigo-400 hover:shadow-md block card-3d"
+              className="group rounded-2xl border border-slate-200/90 dark:border-slate-700/60 bg-white dark:bg-slate-800/70 p-6 shadow-xs transition-all hover:border-indigo-400 dark:hover:border-indigo-600 hover:shadow-md block card-3d"
             >
               <div className="flex items-center justify-between">
                 <motion.div
-                  className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600 group-hover:bg-indigo-600 group-hover:text-white transition-colors"
+                  className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 group-hover:bg-indigo-600 group-hover:text-white transition-colors"
                   whileHover={{ rotate: 10, scale: 1.1 }}
                 >
                   <ClipboardList className="h-5 w-5" />
                 </motion.div>
-                <span className="rounded-md bg-indigo-50 border border-indigo-200 px-2 py-0.5 text-[10px] font-bold text-indigo-700">
+                <span className="rounded-md bg-indigo-50 dark:bg-indigo-950/50 border border-indigo-200 dark:border-indigo-800 px-2 py-0.5 text-[10px] font-bold text-indigo-700 dark:text-indigo-300">
                   {stats ? `${stats.pendingWorkLogReports} To Review` : 'Review'}
                 </span>
               </div>
-              <h3 className="mt-4 font-bold text-slate-900 group-hover:text-indigo-600 transition-colors">Work Log Approvals</h3>
-              <p className="mt-1 text-xs text-slate-600">
+              <h3 className="mt-4 font-bold text-slate-900 dark:text-slate-50 group-hover:text-indigo-600 transition-colors">Work Log Approvals</h3>
+              <p className="mt-1 text-xs text-slate-600 dark:text-slate-400">
                 Review weekly activity reports, deliverables submitted, and mark milestones approved.
               </p>
               <span className="mt-4 inline-flex items-center gap-1 text-xs font-bold text-indigo-700 group-hover:translate-x-0.5 transition-transform">
@@ -306,21 +306,21 @@ export default function AdminDashboardPage() {
           <StaggerItem>
             <Link
               href="/admin/leave"
-              className="group rounded-2xl border border-slate-200/90 bg-white p-6 shadow-xs transition-all hover:border-purple-400 hover:shadow-md block card-3d"
+              className="group rounded-2xl border border-slate-200/90 dark:border-slate-700/60 bg-white dark:bg-slate-800/70 p-6 shadow-xs transition-all hover:border-purple-400 dark:hover:border-purple-600 hover:shadow-md block card-3d"
             >
               <div className="flex items-center justify-between">
                 <motion.div
-                  className="flex h-10 w-10 items-center justify-center rounded-xl bg-purple-50 text-purple-600 group-hover:bg-purple-600 group-hover:text-white transition-colors"
+                  className="flex h-10 w-10 items-center justify-center rounded-xl bg-purple-50 dark:bg-purple-950/50 text-purple-600 dark:text-purple-400 group-hover:bg-purple-600 group-hover:text-white transition-colors"
                   whileHover={{ rotate: -10, scale: 1.1 }}
                 >
                   <CalendarOff className="h-5 w-5" />
                 </motion.div>
-                <span className="rounded-md bg-amber-50 border border-amber-200 px-2 py-0.5 text-[10px] font-bold text-amber-700">
+                <span className="rounded-md bg-amber-50 dark:bg-amber-950/50 border border-amber-200 dark:border-amber-800 px-2 py-0.5 text-[10px] font-bold text-amber-700 dark:text-amber-300">
                   {stats ? `${stats.pendingLeave} Pending` : 'Leave'}
                 </span>
               </div>
-              <h3 className="mt-4 font-bold text-slate-900 group-hover:text-purple-600 transition-colors">Leave Approvals</h3>
-              <p className="mt-1 text-xs text-slate-600">
+              <h3 className="mt-4 font-bold text-slate-900 dark:text-slate-50 group-hover:text-purple-600 transition-colors">Leave Approvals</h3>
+              <p className="mt-1 text-xs text-slate-600 dark:text-slate-400">
                 Review absence requests from interns and volunteers, grant approval, or decline.
               </p>
               <span className="mt-4 inline-flex items-center gap-1 text-xs font-bold text-purple-700 group-hover:translate-x-0.5 transition-transform">
@@ -333,21 +333,21 @@ export default function AdminDashboardPage() {
           <StaggerItem>
             <Link
               href="/admin/issues"
-              className="group rounded-2xl border border-slate-200/90 bg-white p-6 shadow-xs transition-all hover:border-rose-400 hover:shadow-md block card-3d"
+              className="group rounded-2xl border border-slate-200/90 dark:border-slate-700/60 bg-white dark:bg-slate-800/70 p-6 shadow-xs transition-all hover:border-rose-400 dark:hover:border-rose-600 hover:shadow-md block card-3d"
             >
               <div className="flex items-center justify-between">
                 <motion.div
-                  className="flex h-10 w-10 items-center justify-center rounded-xl bg-rose-50 text-rose-600 group-hover:bg-rose-600 group-hover:text-white transition-colors"
+                  className="flex h-10 w-10 items-center justify-center rounded-xl bg-rose-50 dark:bg-rose-950/50 text-rose-600 dark:text-rose-400 group-hover:bg-rose-600 group-hover:text-white transition-colors"
                   whileHover={{ rotate: 10, scale: 1.1 }}
                 >
                   <AlertTriangle className="h-5 w-5" />
                 </motion.div>
-                <span className="rounded-md bg-rose-50 border border-rose-200 px-2 py-0.5 text-[10px] font-bold text-rose-700">
+                <span className="rounded-md bg-rose-50 dark:bg-rose-950/50 border border-rose-200 dark:border-rose-800 px-2 py-0.5 text-[10px] font-bold text-rose-700 dark:text-rose-300">
                   {stats ? `${stats.openIssues} Open` : 'Helpdesk'}
                 </span>
               </div>
-              <h3 className="mt-4 font-bold text-slate-900 group-hover:text-rose-600 transition-colors">Issue Reports</h3>
-              <p className="mt-1 text-xs text-slate-600">
+              <h3 className="mt-4 font-bold text-slate-900 dark:text-slate-50 group-hover:text-rose-600 transition-colors">Issue Reports</h3>
+              <p className="mt-1 text-xs text-slate-600 dark:text-slate-400">
                 Review grievances and blockers submitted by interns, track status, and dispatch solutions.
               </p>
               <span className="mt-4 inline-flex items-center gap-1 text-xs font-bold text-rose-700 group-hover:translate-x-0.5 transition-transform">
@@ -360,21 +360,21 @@ export default function AdminDashboardPage() {
           <StaggerItem>
             <Link
               href="/admin/settings"
-              className="group rounded-2xl border border-slate-200/90 bg-white p-6 shadow-xs transition-all hover:border-slate-400 hover:shadow-md block card-3d"
+              className="group rounded-2xl border border-slate-200/90 dark:border-slate-700/60 bg-white dark:bg-slate-800/70 p-6 shadow-xs transition-all hover:border-slate-400 dark:hover:border-slate-500 hover:shadow-md block card-3d"
             >
               <div className="flex items-center justify-between">
                 <motion.div
-                  className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-100 text-slate-700 group-hover:bg-slate-700 group-hover:text-white transition-colors"
+                  className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 group-hover:bg-slate-700 group-hover:text-white transition-colors"
                   whileHover={{ rotate: -10, scale: 1.1 }}
                 >
                   <ShieldCheck className="h-5 w-5" />
                 </motion.div>
-                <span className="rounded-md bg-slate-100 border border-slate-200 px-2 py-0.5 text-[10px] font-bold text-slate-600">
+                <span className="rounded-md bg-slate-100 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 px-2 py-0.5 text-[10px] font-bold text-slate-600 dark:text-slate-300">
                   Config
                 </span>
               </div>
-              <h3 className="mt-4 font-bold text-slate-900 group-hover:text-slate-700 transition-colors">NGO Settings</h3>
-              <p className="mt-1 text-xs text-slate-600">
+              <h3 className="mt-4 font-bold text-slate-900 dark:text-slate-50 group-hover:text-slate-700 transition-colors">NGO Settings</h3>
+              <p className="mt-1 text-xs text-slate-600 dark:text-slate-400">
                 Manage organization profile, intake application windows, and supervisor contacts.
               </p>
               <span className="mt-4 inline-flex items-center gap-1 text-xs font-bold text-slate-700 group-hover:translate-x-0.5 transition-transform">
