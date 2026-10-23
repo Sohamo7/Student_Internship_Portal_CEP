@@ -21,19 +21,19 @@ export function StatCard({
   icon,
 }: StatCardProps) {
   const badgeClasses = {
-    emerald: 'bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800',
-    amber: 'bg-amber-50 dark:bg-amber-950/50 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-800',
-    blue: 'bg-blue-50 dark:bg-blue-950/50 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800',
-    purple: 'bg-purple-50 dark:bg-purple-950/50 text-purple-700 dark:text-purple-300 border-purple-200 dark:border-purple-800',
-    slate: 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700',
+    emerald: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+    amber: 'bg-amber-50 text-amber-700 border-amber-200',
+    blue: 'bg-blue-50 text-blue-700 border-blue-200',
+    purple: 'bg-purple-50 text-purple-700 border-purple-200',
+    slate: 'bg-slate-100 text-slate-700 border-slate-200',
   }[badgeColor];
 
   const iconBgClasses = {
-    emerald: 'bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400',
-    amber: 'bg-amber-50 dark:bg-amber-950/50 text-amber-600 dark:text-amber-400',
-    blue: 'bg-blue-50 dark:bg-blue-950/50 text-blue-600 dark:text-blue-400',
-    purple: 'bg-purple-50 dark:bg-purple-950/50 text-purple-600 dark:text-purple-400',
-    slate: 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400',
+    emerald: 'bg-emerald-50 text-emerald-600',
+    amber: 'bg-amber-50 text-amber-600',
+    blue: 'bg-blue-50 text-blue-600',
+    purple: 'bg-purple-50 text-purple-600',
+    slate: 'bg-slate-100 text-slate-600',
   }[badgeColor];
 
   const glowColor = {
@@ -64,7 +64,7 @@ export function StatCard({
 
   return (
     <motion.div
-      className="relative overflow-hidden rounded-2xl border border-slate-200/90 dark:border-slate-700/60 bg-white dark:bg-slate-800/70 p-6 shadow-xs cursor-pointer transition-colors duration-300"
+      className="relative overflow-hidden rounded-2xl border border-slate-200/90 bg-white p-6 shadow-xs cursor-pointer"
       onMouseMove={handleMouseMove}
       onMouseLeave={handleMouseLeave}
       animate={{ rotateX, rotateY }}
@@ -86,7 +86,7 @@ export function StatCard({
 
       <div className="relative" style={{ transform: 'translateZ(20px)' }}>
         <div className="flex items-center justify-between">
-          <span className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">{title}</span>
+          <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">{title}</span>
           <motion.div
             className={`flex h-11 w-11 items-center justify-center rounded-xl ${iconBgClasses}`}
             whileHover={{ scale: 1.1, rotate: 5 }}
@@ -96,7 +96,7 @@ export function StatCard({
           </motion.div>
         </div>
         <div className="mt-4 flex items-baseline gap-2">
-          <span className="text-3xl font-extrabold tracking-tight text-slate-900 dark:text-slate-50">{value}</span>
+          <span className="text-3xl font-extrabold tracking-tight text-slate-900">{value}</span>
           {badge && (
             <motion.span
               className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold ${badgeClasses}`}
@@ -109,7 +109,7 @@ export function StatCard({
           )}
         </div>
         {subtitle && (
-          <p className="mt-2 text-xs text-slate-500 dark:text-slate-400 font-medium">{subtitle}</p>
+          <p className="mt-2 text-xs text-slate-500 font-medium">{subtitle}</p>
         )}
       </div>
     </motion.div>

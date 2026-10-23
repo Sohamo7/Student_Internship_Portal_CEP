@@ -94,7 +94,7 @@ function SignInForm() {
 
       <form onSubmit={handleSubmit} className="space-y-5">
         <div>
-          <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300">
+          <label className="block text-xs font-semibold text-slate-700">
             Email Address
           </label>
           <div className="relative mt-1.5">
@@ -107,13 +107,13 @@ function SignInForm() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="name@organization.org or student.edu"
-              className="block w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50 pl-10 pr-3 py-2.5 text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:border-indigo-500 focus:bg-white dark:focus:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+              className="block w-full rounded-xl border border-slate-200 bg-slate-50/50 pl-10 pr-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:border-indigo-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
             />
           </div>
         </div>
 
         <div>
-          <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300">
+          <label className="block text-xs font-semibold text-slate-700">
             Password
           </label>
           <div className="relative mt-1.5">
@@ -126,7 +126,7 @@ function SignInForm() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="••••••••"
-              className="block w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50 pl-10 pr-3 py-2.5 text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:border-indigo-500 focus:bg-white dark:focus:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+              className="block w-full rounded-xl border border-slate-200 bg-slate-50/50 pl-10 pr-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:border-indigo-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
             />
           </div>
         </div>
@@ -324,7 +324,7 @@ function ApplyForm({ onSubmitted }: { onSubmitted: () => void }) {
       <form onSubmit={handleSubmit} className="space-y-4">
         {/* Role Track Selection */}
         <div className="space-y-1.5">
-          <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300">Apply As / Program Track</label>
+          <label className="block text-xs font-semibold text-slate-700">Apply As / Program Track</label>
           <div className="grid grid-cols-2 gap-3">
             <button
               type="button"
@@ -377,7 +377,7 @@ function ApplyForm({ onSubmitted }: { onSubmitted: () => void }) {
         </div>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div>
-            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300">Full Name</label>
+            <label className="block text-xs font-semibold text-slate-700">Full Name</label>
             <div className="relative mt-1.5">
               <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
                 <User className="h-4 w-4" />
@@ -388,13 +388,13 @@ function ApplyForm({ onSubmitted }: { onSubmitted: () => void }) {
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="Rahul Sharma"
-                className="block w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50 pl-10 pr-3 py-2.5 text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:border-indigo-500 focus:bg-white dark:focus:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+                className="block w-full rounded-xl border border-slate-200 bg-slate-50/50 pl-10 pr-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:border-indigo-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
               />
             </div>
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300">Contact Number</label>
+            <label className="block text-xs font-semibold text-slate-700">Contact Number</label>
             <div className="relative mt-1.5">
               <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
                 <Phone className="h-4 w-4" />
@@ -405,14 +405,14 @@ function ApplyForm({ onSubmitted }: { onSubmitted: () => void }) {
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
                 placeholder="+91 98765 12345"
-                className="block w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50 pl-10 pr-3 py-2.5 text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:border-indigo-500 focus:bg-white dark:focus:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+                className="block w-full rounded-xl border border-slate-200 bg-slate-50/50 pl-10 pr-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:border-indigo-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
               />
             </div>
           </div>
         </div>
 
         <div>
-          <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300">Email Address</label>
+          <label className="block text-xs font-semibold text-slate-700">Email Address</label>
           <div className="relative mt-1.5">
             <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
               <Mail className="h-4 w-4" />
@@ -423,14 +423,14 @@ function ApplyForm({ onSubmitted }: { onSubmitted: () => void }) {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="rahul@college.edu"
-              className="block w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50 pl-10 pr-3 py-2.5 text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:border-indigo-500 focus:bg-white dark:focus:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+              className="block w-full rounded-xl border border-slate-200 bg-slate-50/50 pl-10 pr-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:border-indigo-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
             />
           </div>
         </div>
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div>
-            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300">College Name</label>
+            <label className="block text-xs font-semibold text-slate-700">College Name</label>
             <div className="relative mt-1.5">
               <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
                 <School className="h-4 w-4" />
@@ -441,13 +441,13 @@ function ApplyForm({ onSubmitted }: { onSubmitted: () => void }) {
                 value={college}
                 onChange={(e) => setCollege(e.target.value)}
                 placeholder="Delhi Technological University"
-                className="block w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50 pl-10 pr-3 py-2.5 text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:border-indigo-500 focus:bg-white dark:focus:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+                className="block w-full rounded-xl border border-slate-200 bg-slate-50/50 pl-10 pr-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:border-indigo-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
               />
             </div>
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300">Course / Degree</label>
+            <label className="block text-xs font-semibold text-slate-700">Course / Degree</label>
             <div className="relative mt-1.5">
               <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
                 <GraduationCap className="h-4 w-4" />
@@ -458,14 +458,14 @@ function ApplyForm({ onSubmitted }: { onSubmitted: () => void }) {
                 value={degree}
                 onChange={(e) => setDegree(e.target.value)}
                 placeholder="B.Tech in Information Technology"
-                className="block w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50 pl-10 pr-3 py-2.5 text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:border-indigo-500 focus:bg-white dark:focus:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+                className="block w-full rounded-xl border border-slate-200 bg-slate-50/50 pl-10 pr-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:border-indigo-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
               />
             </div>
           </div>
         </div>
 
         <div>
-          <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300">Key Skills</label>
+          <label className="block text-xs font-semibold text-slate-700">Key Skills</label>
           <input
             type="text"
             value={skills}
@@ -476,7 +476,7 @@ function ApplyForm({ onSubmitted }: { onSubmitted: () => void }) {
         </div>
 
         <div>
-          <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300">Program Field of Interest</label>
+          <label className="block text-xs font-semibold text-slate-700">Program Field of Interest</label>
           <select
             value={interest}
             onChange={(e) => setInterest(e.target.value)}
@@ -489,7 +489,7 @@ function ApplyForm({ onSubmitted }: { onSubmitted: () => void }) {
         </div>
 
         <div>
-          <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300">
+          <label className="block text-xs font-semibold text-slate-700">
             Statement of Purpose <span className="font-normal text-slate-400">(optional)</span>
           </label>
           <textarea
@@ -502,7 +502,7 @@ function ApplyForm({ onSubmitted }: { onSubmitted: () => void }) {
         </div>
 
         <div>
-          <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300">
+          <label className="block text-xs font-semibold text-slate-700">
             Résumé / Supporting Document <span className="font-normal text-slate-400">(optional)</span>
           </label>
           <input
@@ -545,7 +545,7 @@ function ApplyForm({ onSubmitted }: { onSubmitted: () => void }) {
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 pt-1">
           <div>
-            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300">Create Password</label>
+            <label className="block text-xs font-semibold text-slate-700">Create Password</label>
             <div className="relative mt-1.5">
               <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
                 <Lock className="h-4 w-4" />
@@ -556,13 +556,13 @@ function ApplyForm({ onSubmitted }: { onSubmitted: () => void }) {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="At least 6 characters"
-                className="block w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50 pl-10 pr-3 py-2.5 text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:border-indigo-500 focus:bg-white dark:focus:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+                className="block w-full rounded-xl border border-slate-200 bg-slate-50/50 pl-10 pr-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:border-indigo-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
               />
             </div>
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300">Confirm Password</label>
+            <label className="block text-xs font-semibold text-slate-700">Confirm Password</label>
             <div className="relative mt-1.5">
               <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
                 <Lock className="h-4 w-4" />
@@ -573,7 +573,7 @@ function ApplyForm({ onSubmitted }: { onSubmitted: () => void }) {
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 placeholder="Repeat password"
-                className="block w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50 pl-10 pr-3 py-2.5 text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:border-indigo-500 focus:bg-white dark:focus:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+                className="block w-full rounded-xl border border-slate-200 bg-slate-50/50 pl-10 pr-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:border-indigo-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
               />
             </div>
           </div>
@@ -624,10 +624,10 @@ function LoginTabs() {
         <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-tr from-indigo-600 to-violet-600 text-white shadow-md shadow-indigo-600/20">
           <Lock className="h-6 w-6" />
         </div>
-        <h2 className="mt-5 text-3xl font-extrabold tracking-tight text-slate-900 dark:text-slate-50">
+        <h2 className="mt-5 text-3xl font-extrabold tracking-tight text-slate-900">
           {tab === 'signin' ? 'Sign in to your account' : 'Apply for an Internship'}
         </h2>
-        <p className="mt-2 text-sm text-slate-600 dark:text-slate-400">
+        <p className="mt-2 text-sm text-slate-600">
           {tab === 'signin'
             ? 'Access your personalized student or NGO administration dashboard'
             : 'New volunteer? Submit your details — an NGO admin will review and approve your access.'}
@@ -635,14 +635,14 @@ function LoginTabs() {
       </div>
 
       {/* Tab Switcher */}
-      <div className="grid grid-cols-2 gap-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 p-1">
+      <div className="grid grid-cols-2 gap-1.5 rounded-xl border border-slate-200 bg-slate-100 p-1">
         <button
           type="button"
           onClick={() => setTab('signin')}
           className={`rounded-lg px-3 py-2 text-xs font-semibold transition-all cursor-pointer ${
             tab === 'signin'
-              ? 'bg-white dark:bg-slate-700 text-indigo-700 dark:text-indigo-300 shadow-sm'
-              : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
+              ? 'bg-white text-indigo-700 shadow-sm'
+              : 'text-slate-500 hover:text-slate-700'
           }`}
         >
           Sign In
@@ -653,8 +653,8 @@ function LoginTabs() {
           onClick={() => setTab('apply')}
           className={`rounded-lg px-3 py-2 text-xs font-semibold transition-all cursor-pointer ${
             tab === 'apply'
-              ? 'bg-white dark:bg-slate-700 text-indigo-700 dark:text-indigo-300 shadow-sm'
-              : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
+              ? 'bg-white text-indigo-700 shadow-sm'
+              : 'text-slate-500 hover:text-slate-700'
           }`}
         >
           Apply
@@ -663,7 +663,7 @@ function LoginTabs() {
       </div>
 
       {/* Card */}
-      <div className="rounded-2xl border border-slate-200/90 dark:border-slate-700/60 bg-white dark:bg-slate-800/70 p-8 shadow-sm">
+      <div className="rounded-2xl border border-slate-200/90 bg-white p-8 shadow-sm">
         {tab === 'signin' ? (
           <SignInForm />
         ) : (
@@ -672,7 +672,7 @@ function LoginTabs() {
       </div>
 
       {/* Footer */}
-      <p className="text-center text-xs text-slate-500 dark:text-slate-400">
+      <p className="text-center text-xs text-slate-500">
         {tab === 'signin' ? (
           <>
             New volunteer, not yet applied?{' '}
@@ -697,7 +697,7 @@ function LoginTabs() {
           </>
         )}
       </p>
-      <p className="text-center text-[11px] text-slate-400 dark:text-slate-500">
+      <p className="text-center text-[11px] text-slate-400">
         NGO staff account? Use the Sign In tab above — admin accounts are created directly by the NGO, not through Apply.
       </p>
     </div>
@@ -706,7 +706,7 @@ function LoginTabs() {
 
 export default function LoginPage() {
   return (
-    <div className="flex flex-1 items-center justify-center px-4 py-12 sm:px-6 lg:px-8 bg-slate-50/60 dark:bg-slate-950">
+    <div className="flex flex-1 items-center justify-center px-4 py-12 sm:px-6 lg:px-8 bg-slate-50/60">
       <Suspense fallback={
         <div className="flex flex-col items-center justify-center p-8 text-xs text-slate-400">
           <div className="h-6 w-6 animate-spin rounded-full border-2 border-indigo-600 border-t-transparent" />

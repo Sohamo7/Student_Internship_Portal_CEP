@@ -2,7 +2,6 @@ import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
 import './globals.css';
 import { AuthProvider } from '@/lib/auth/auth-context';
-import { ThemeProvider } from '@/lib/theme/theme-context';
 import { Navbar } from '@/components/navbar';
 
 const inter = Inter({ subsets: ['latin'] });
@@ -18,17 +17,14 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    // suppressHydrationWarning: ThemeProvider adds/removes 'dark' class client-side
-    <html lang="en" className="h-full" suppressHydrationWarning>
-      <body className={`${inter.className} min-h-full flex flex-col bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 antialiased transition-colors duration-300`}>
-        <ThemeProvider>
-          <AuthProvider>
-            <Navbar />
-            <main className="flex-1 flex flex-col">
-              {children}
-            </main>
-          </AuthProvider>
-        </ThemeProvider>
+    <html lang="en" className="h-full bg-slate-50/60" style={{ colorScheme: 'light' }}>
+      <body className={`${inter.className} min-h-full flex flex-col bg-slate-50/60 text-slate-900 antialiased`}>
+        <AuthProvider>
+          <Navbar />
+          <main className="flex-1 flex flex-col">
+            {children}
+          </main>
+        </AuthProvider>
       </body>
     </html>
   );
